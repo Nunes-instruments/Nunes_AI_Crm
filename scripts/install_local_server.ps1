@@ -74,7 +74,7 @@ function Publish-StaffServerConfig([string]$TargetRoot){
     $cfgDir=Join-Path $TargetRoot 'config'
     New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
     $obj=[ordered]@{
-      version='2.11.3'
+      version='2.11.4'
       port=$Port
       computer_name=$env:COMPUTERNAME
       candidates=@(Get-ServerCandidates)

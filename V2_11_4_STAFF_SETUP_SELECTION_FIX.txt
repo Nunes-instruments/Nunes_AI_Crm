@@ -1,0 +1,16 @@
+NUNES AI CRM V2.11.4 - STAFF SETUP SELECTION FIX
+
+FIXED
+- Staff setup no longer fails after choosing a numbered employee.
+- Corrected invalid PowerShell String($answer) conversion to ([string]$answer).
+- The numbered staff list, Refresh, Not in list, LAN-first and Tailscale-fallback flow are unchanged.
+- Existing staff profiles and all historical CRM data are preserved.
+- No database is created on a staff PC.
+
+SERVER ADDRESSES
+- Office LAN: http://192.168.29.194:8765
+- Tailscale fallback: http://100.97.196.17:8765
+
+UPDATE
+Run UPDATE_REPAIR_SERVER.bat once on the MAIN server.
+Then rerun 2_SETUP_STAFF_PC.bat on the affected staff PC and choose the employee number.

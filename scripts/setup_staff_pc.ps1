@@ -121,7 +121,7 @@ while(!$user){
     $answer=Read-Host "Choose 1-$($users.Count), R, 0, or X"
   }
 
-  $choice=String($answer).Trim()
+  $choice=([string]$answer).Trim()
   if($choice -match '^[Rr]$'){continue}
   if($choice -match '^[Xx]$'){Write-Host 'Staff setup cancelled.' -ForegroundColor Yellow;exit 0}
   if($choice -eq '0'){
@@ -156,7 +156,7 @@ $sourceScript=Join-Path $ScriptDir 'open_staff_app.ps1'
 $launcherScript=Join-Path $common 'open_staff_app.ps1'
 Copy-Item -LiteralPath $sourceScript -Destination $launcherScript -Force
 $config=Join-Path $profile 'client.json'
-@{server_url=$server;user_id=$id;user_name=$user.name;device_token=$deviceToken;device_type='STAFF';configured_at=(Get-Date).ToString('o');client_version='2.11.3'} | ConvertTo-Json | Set-Content -LiteralPath $config -Encoding UTF8
+@{server_url=$server;user_id=$id;user_name=$user.name;device_token=$deviceToken;device_type='STAFF';configured_at=(Get-Date).ToString('o');client_version='2.11.4'} | ConvertTo-Json | Set-Content -LiteralPath $config -Encoding UTF8
 @{server_url=$server;user_id=$id;user_name=$user.name} | ConvertTo-Json | Set-Content -LiteralPath $lastCfg -Encoding UTF8
 
 # Tiny CMD launcher avoids PowerShell quoting problems on NAS paths.

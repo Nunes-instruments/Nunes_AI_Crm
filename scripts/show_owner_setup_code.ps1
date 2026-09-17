@@ -61,7 +61,7 @@ if(!$ready){
 # is still occupying the port after an upgrade, restart once so the new code runs.
 $port=[int]$ready.port
 $health=$ready.health
-$needsRestart=([string]$health.version -ne '2.11.3')
+$needsRestart=([string]$health.version -ne '2.11.4')
 if(!$needsRestart){
   try{
     $reply=Invoke-RestMethod -UseBasicParsing -Uri "http://127.0.0.1:$port/api/device/owner-setup-code" -TimeoutSec 3
