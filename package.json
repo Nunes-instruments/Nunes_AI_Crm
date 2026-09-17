@@ -1,9 +1,9 @@
 {
   "name": "nunes-ai-sales-intelligence-crm",
-  "version": "2.11.1",
+  "version": "2.11.3",
   "private": true,
   "type": "module",
-  "description": "Nunes AI CRM V2.11.1: GitHub source-of-truth updates on the main server, automatic Owner/Staff web refresh, self-updating desktop launchers, and data-safe upgrades that preserve the live CRM database.",
+  "description": "Nunes AI CRM V2.11.3: GitHub source-of-truth updates, automatic Owner/Staff refresh, resilient staff profile setup with Owner Add Staff, LAN/Tailscale failover, self-updating launchers, and data-safe upgrades.",
   "engines": {
     "node": ">=22.5.0"
   },

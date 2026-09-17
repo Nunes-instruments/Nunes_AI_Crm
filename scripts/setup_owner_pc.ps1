@@ -11,6 +11,8 @@ $common=Join-Path $LocalBase 'NunesAI\CRMOwner';New-Item -ItemType Directory -Fo
 function Normalize-Server([string]$s){if([string]::IsNullOrWhiteSpace($s)){return $null};$s=$s.Trim().TrimEnd('/');if($s -notmatch '^https?://'){$s='http://'+$s};try{$u=[Uri]$s;if($u.IsDefaultPort -and $s -notmatch ':\d+$'){$s=$s+':8765'};return $s}catch{return $null}}
 function Test-CrmServer([string]$s,[int]$Timeout=2){try{$n=Normalize-Server $s;if(!$n){return $null};$h=Invoke-RestMethod -UseBasicParsing -Uri "$n/api/health" -TimeoutSec $Timeout;if($h.app -eq 'NUNES_AI_CRM_V1'){return $n}}catch{};return $null}
 $candidates=New-Object 'System.Collections.Generic.List[string]'
+[void]$candidates.Add('http://192.168.29.194:8765')
+[void]$candidates.Add('http://100.97.196.17:8765')
 $last=Join-Path $common 'client.json';if(Test-Path -LiteralPath $last){try{$x=(Get-Content -LiteralPath $last -Raw|ConvertFrom-Json).server_url;if($x){[void]$candidates.Add([string]$x)}}catch{}}
 $published=Join-Path $PackageRoot 'config\staff-server.json';if(Test-Path -LiteralPath $published){try{@((Get-Content -LiteralPath $published -Raw|ConvertFrom-Json).candidates)|ForEach-Object{if($_ -and !$candidates.Contains([string]$_)){[void]$candidates.Add([string]$_)}}}catch{}}
 $server=$null;foreach($c in @($candidates)){$server=Test-CrmServer $c 2;if($server){break}}
@@ -23,7 +25,7 @@ $body=@{setup_code=$code;device_name="$env:COMPUTERNAME / $env:USERNAME"}|Conver
 try{$reg=Invoke-RestMethod -UseBasicParsing -Method Post -Uri "$server/api/device/register-owner" -ContentType 'application/json' -Body $body -TimeoutSec 8}catch{throw "Owner PC could not be linked: $($_.Exception.Message)"}
 $token=[string]$reg.data.device_token;$user=$reg.data.user;if([string]::IsNullOrWhiteSpace($token)){throw 'The server did not return an owner device token.'}
 $launcher=Join-Path $common 'open_staff_app.ps1';Copy-Item -LiteralPath (Join-Path $ScriptDir 'open_staff_app.ps1') -Destination $launcher -Force
-$config=Join-Path $common 'client.json';@{server_url=$server;user_id=$user.id;user_name=$user.name;device_token=$token;device_type='OWNER';configured_at=(Get-Date).ToString('o');client_version='2.11.1'}|ConvertTo-Json|Set-Content -LiteralPath $config -Encoding UTF8
+$config=Join-Path $common 'client.json';@{server_url=$server;user_id=$user.id;user_name=$user.name;device_token=$token;device_type='OWNER';configured_at=(Get-Date).ToString('o');client_version='2.11.3'}|ConvertTo-Json|Set-Content -LiteralPath $config -Encoding UTF8
 $cmd=Join-Path $common 'OPEN_NUNES_AI_CRM_OWNER.cmd';$cmdText='@echo off'+"`r`n"+'start "" powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "'+$launcher+'" -ConfigPath "'+$config+'"'+"`r`n";[IO.File]::WriteAllText($cmd,$cmdText,[Text.Encoding]::ASCII)
 $iconSource=Join-Path $PackageRoot 'assets\NUNES_AI_CRM.ico';$iconLocal=Join-Path $common 'NUNES_AI_CRM.ico';if(Test-Path -LiteralPath $iconSource){Copy-Item -LiteralPath $iconSource -Destination $iconLocal -Force}
 $helper=Join-Path $ScriptDir 'create_desktop_icon.ps1';if(Test-Path -LiteralPath $helper){& powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $helper -Mode Staff -TargetPath $cmd -WorkingDirectory $common -DisplayName 'NUNES AI CRM - OWNER' -Description 'NUNES AI CRM - Owner Overall Company View' -IconPath $iconLocal | Out-Null}

@@ -51,7 +51,7 @@ if exist "%APP%\scripts\update_from_github.ps1" (
   echo Owner and Staff CRM screens will receive the server version automatically.
 ) else (
   echo.
-  echo GitHub push succeeded. V2.11.1 is not installed in the standard server path yet.
+  echo GitHub push succeeded. V2.11.3 is not installed in the standard server path yet.
   echo Run UPDATE_REPAIR_SERVER.bat once on the MAIN SERVER.
 )
 pause

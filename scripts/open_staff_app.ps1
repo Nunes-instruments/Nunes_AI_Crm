@@ -1,6 +1,6 @@
 param([Parameter(Mandatory=$true)][string]$ConfigPath)
 $ErrorActionPreference='Stop'
-$ClientVersion='2.11.1'
+$ClientVersion='2.11.3'
 Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
 
 function Show-Error([string]$Message){

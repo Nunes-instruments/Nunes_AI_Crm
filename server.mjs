@@ -42,9 +42,9 @@ const SCORE_FACTORS_V2 = [
 const SCORE_CONFIG_VERSION = '2';
 const ANALYSIS_VERSION = 8;
 const PRODUCT_INTELLIGENCE_VERSION = 'V3_REQUEST_AWARE';
-const DEPLOYMENT_VERSION = 'V2_11_0_GITHUB_SOURCE_OF_TRUTH_AUTO_UPDATE';
-const APP_VERSION = '2.11.1';
-const CLIENT_LAUNCHER_VERSION = '2.11.1';
+const DEPLOYMENT_VERSION = 'V2_11_3_STAFF_PROFILE_SETUP_RECOVERY';
+const APP_VERSION = '2.11.3';
+const CLIENT_LAUNCHER_VERSION = '2.11.3';
 const GITHUB_UPDATE_REPO = String(process.env.CRM_UPDATE_REPO||'Nunes-instruments/Nunes_AI_Crm').trim();
 const GITHUB_UPDATE_BRANCH = String(process.env.CRM_UPDATE_BRANCH||'main').trim()||'main';
 const GITHUB_AUTO_UPDATE_ENABLED = String(process.env.CRM_GITHUB_AUTO_UPDATE||'true').toLowerCase()!=='false';
@@ -2766,6 +2766,24 @@ async function api(req,res,url){
 
     if(req.method==='GET'&&url.pathname==='/api/bootstrap'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Overall dashboard is available only to the owner.'});return sendJson(res,200,{ok:true,data:dashboardData()});}
     if(req.method==='GET'&&url.pathname==='/api/team/users') return sendJson(res,200,{ok:true,data:teamUsers()});
+    if(req.method==='POST'&&url.pathname==='/api/team/users'){
+      const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Only the owner can add staff profiles.'});
+      const b=await readBody(req),name=String(b.name||'').trim(),email=String(b.email||'').trim()||null,designation=String(b.designation||'Sales Team').trim()||'Sales Team',phone=String(b.phone||'').trim()||null;
+      if(!name)return sendJson(res,400,{ok:false,error:'Enter the staff name.'});
+      let existing=db.prepare("SELECT * FROM users WHERE role='SALESPERSON' AND lower(name)=lower(?) ORDER BY id LIMIT 1").get(name);
+      if(existing){
+        db.prepare("UPDATE users SET active=1,email=COALESCE(?,email),designation=?,phone=COALESCE(?,phone) WHERE id=?").run(email,designation,phone,existing.id);
+        bumpDataRevision();
+        return sendJson(res,200,{ok:true,data:db.prepare('SELECT id,name,email,role,designation,photo_data,display_order,phone,active FROM users WHERE id=?').get(existing.id),reactivated:true});
+      }
+      const activeCount=Number(db.prepare("SELECT COUNT(*) AS c FROM users WHERE active=1 AND role='SALESPERSON'").get()?.c||0);
+      if(activeCount>=10)return sendJson(res,400,{ok:false,error:'10 active staff profiles already exist. Deactivate or reuse an existing profile before adding another.'});
+      const team=db.prepare('SELECT id FROM teams ORDER BY id LIMIT 1').get();
+      const nextOrder=Number(db.prepare("SELECT COALESCE(MAX(display_order),0)+1 AS n FROM users WHERE role='SALESPERSON'").get()?.n||1);
+      const id=db.prepare("INSERT INTO users(name,email,role,team_id,designation,display_order,phone,active) VALUES (?,?,?,?,?,?,?,1)").run(name,email,'SALESPERSON',team?.id||null,designation,nextOrder,phone).lastInsertRowid;
+      bumpDataRevision();
+      return sendJson(res,201,{ok:true,data:db.prepare('SELECT id,name,email,role,designation,photo_data,display_order,phone,active FROM users WHERE id=?').get(id)});
+    }
     const staffPhotoRoute=url.pathname.match(/^\/api\/team\/users\/(\d+)\/photo$/);if(staffPhotoRoute&&req.method==='GET'){try{const out=await staffPhotoBuffer(Number(staffPhotoRoute[1]));if(!out)return send(res,404,'Photo not available',{'Content-Type':'text/plain; charset=utf-8'});return send(res,200,out.buffer,{'Content-Type':out.type,'Cache-Control':'private, max-age=300'});}catch{return send(res,404,'Photo not available',{'Content-Type':'text/plain; charset=utf-8'});}}
     if(req.method==='POST'&&url.pathname==='/api/team/sync-crm-photos'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Only the owner can refresh CRM staff photos.'});const data=await syncCrmStaffDirectory();return sendJson(res,200,{ok:true,data});}
     if(req.method==='GET'&&url.pathname==='/api/owner-dashboard'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Owner dashboard is available only on the owner profile.'});return sendJson(res,200,{ok:true,data:ownerDashboardData(url.searchParams.get('period')||'TODAY')});}

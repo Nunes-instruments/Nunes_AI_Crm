@@ -1,6 +1,6 @@
 # NUNES AI CRM
 
-Current production version: **2.11.2**.
+Current production version: **2.11.3**.
 
 ## Production update flow
 
@@ -8,7 +8,7 @@ Current production version: **2.11.2**.
 
 **Never commit production data or credentials.** `.env`, SQLite databases, OAuth tokens, device tokens, LeadSphere credentials, runtime data, backups and staff photos are excluded by `.gitignore`.
 
-For the first V2.11.2 migration only, run `UPDATE_REPAIR_SERVER.bat` on the main server. After that, normal updates are GitHub-driven.
+For the first V2.11.3 migration only, run `UPDATE_REPAIR_SERVER.bat` on the main server. After that, normal updates are GitHub-driven.
 
 If the GitHub repository is still empty, run **GITHUB_PUBLISH_MASTER.bat**. It provides an automatic Git push option and a safe manual-browser upload folder option. The automatic push option also force-syncs/restarts the installed main server from GitHub immediately, so Owner and Staff receive the server version without waiting for the 5-minute poll. It never intentionally publishes the live SQLite database, `.env`, OAuth/device tokens, backups, logs, runtime files, or staff photos.
 

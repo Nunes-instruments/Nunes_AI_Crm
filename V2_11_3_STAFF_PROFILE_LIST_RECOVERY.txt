@@ -1,0 +1,8 @@
+NUNES AI CRM V2.11.3 - STAFF PROFILE LIST RECOVERY
+
+- Main server network defaults: LAN 192.168.29.194:8765, Tailscale 100.97.196.17:8765.
+- Staff PC setup now shows staff by simple 1..N selection instead of requiring database IDs.
+- If a staff member is missing, choose 0. The setup waits while Owner adds the person and can refresh without restarting the BAT.
+- Owner Settings -> Sales Team Profiles now has + Add Staff. Maximum 10 active staff profiles.
+- Re-adding an inactive staff name reactivates the same profile so historical ownership is preserved.
+- No live database, old leads, quotations, history, .env, tokens, backups, or personal browser logins are overwritten by this code update.

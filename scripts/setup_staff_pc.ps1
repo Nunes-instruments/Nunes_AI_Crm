@@ -41,7 +41,9 @@ function Add-Candidate([System.Collections.Generic.List[string]]$List,[string]$V
 }
 
 $candidates=New-Object 'System.Collections.Generic.List[string]'
-# Known MAIN server Tailscale address used as a fallback.
+# Known MAIN server addresses. Office LAN is tried first, then Tailscale.
+Add-Candidate $candidates 'http://192.168.29.194:8765'
+Add-Candidate $candidates 'http://100.97.196.17:8765'
 
 # Fastest: reuse the server from a previous setup on this staff PC.
 try{
@@ -75,30 +77,70 @@ if(!$server){
 }
 
 # Get live staff profiles from the one central CRM.
-try{$response=Invoke-RestMethod -UseBasicParsing -Uri "$server/api/team/users" -TimeoutSec 5}catch{throw "Connected to the server, but staff profiles could not be loaded: $($_.Exception.Message)"}
-$users=@($response.data | Where-Object { $_.active -ne 0 -and $_.role -eq 'SALESPERSON' })
-if(!$users.Count){throw 'No active staff profiles were returned by the CRM.'}
-
-# If this PC was already assigned, keep that person by default for a very fast repair/update.
+# Do not fail permanently when a newly joined employee is not in the list.
+# The Owner can add the profile in Owner Settings -> Sales Team Profiles, then this screen can refresh immediately.
 $previousId=$null
 $lastCfg=Join-Path $common 'last_staff.json'
 if(Test-Path -LiteralPath $lastCfg){try{$previousId=[int]((Get-Content -LiteralPath $lastCfg -Raw | ConvertFrom-Json).user_id)}catch{}}
 
-Write-Host ''
-Write-Host 'Choose this computer staff profile:' -ForegroundColor Yellow
-foreach($u in $users){
-  $mark=if($previousId -and $u.id -eq $previousId){'  [THIS PC]'}else{''}
-  Write-Host ("[{0}] {1}{2}{3}" -f $u.id,$u.name,$(if($u.designation){" - $($u.designation)"}else{''}),$mark)
+function Get-LiveStaffUsers {
+  try{
+    $response=Invoke-RestMethod -UseBasicParsing -Uri "$server/api/team/users" -TimeoutSec 5
+    return @($response.data | Where-Object { $_.active -ne 0 -and ([string]$_.role).ToUpperInvariant() -eq 'SALESPERSON' })
+  }catch{
+    throw "Connected to the server, but staff profiles could not be loaded: $($_.Exception.Message)"
+  }
 }
-Write-Host ''
-if($previousId -and ($users | Where-Object {$_.id -eq $previousId})){
-  $answer=Read-Host "Press ENTER to keep staff ID $previousId, or type another ID"
-  if([string]::IsNullOrWhiteSpace($answer)){$id=$previousId}else{$id=[int]$answer}
-}else{
-  $id=[int](Read-Host 'Enter staff ID')
+
+$user=$null
+while(!$user){
+  $users=@(Get-LiveStaffUsers)
+  Write-Host ''
+  Write-Host 'Choose this computer staff profile:' -ForegroundColor Yellow
+  if($users.Count -gt 0){
+    for($i=0;$i -lt $users.Count;$i++){
+      $u=$users[$i]
+      $mark=if($previousId -and [int]$u.id -eq $previousId){'  [THIS PC - PREVIOUS]'}else{''}
+      $designation=if($u.designation){" - $($u.designation)"}else{''}
+      Write-Host ("[{0}] {1}{2}{3}" -f ($i+1),$u.name,$designation,$mark)
+    }
+  }else{
+    Write-Host 'No active staff profiles are currently available on the MAIN server.' -ForegroundColor Red
+  }
+  Write-Host ''
+  Write-Host '[R] Refresh staff list' -ForegroundColor Cyan
+  Write-Host '[0] My staff name is NOT in this list' -ForegroundColor Cyan
+  Write-Host '[X] Exit setup' -ForegroundColor DarkGray
+  Write-Host ''
+
+  if($previousId -and ($users | Where-Object {[int]$_.id -eq $previousId})){
+    $prev=$users | Where-Object {[int]$_.id -eq $previousId} | Select-Object -First 1
+    $answer=Read-Host "Press ENTER to keep $($prev.name), choose 1-$($users.Count), R, 0, or X"
+    if([string]::IsNullOrWhiteSpace($answer)){$user=$prev;break}
+  }else{
+    $answer=Read-Host "Choose 1-$($users.Count), R, 0, or X"
+  }
+
+  $choice=String($answer).Trim()
+  if($choice -match '^[Rr]$'){continue}
+  if($choice -match '^[Xx]$'){Write-Host 'Staff setup cancelled.' -ForegroundColor Yellow;exit 0}
+  if($choice -eq '0'){
+    Write-Host ''
+    Write-Host 'THIS STAFF IS NOT YET IN THE MAIN CRM STAFF LIST.' -ForegroundColor Yellow
+    Write-Host 'On the OWNER computer open: Owner Settings -> Sales Team Profiles -> Add Staff.' -ForegroundColor White
+    Write-Host 'Add/activate the employee once. Do NOT create a separate database on this PC.' -ForegroundColor DarkGray
+    Write-Host 'After the Owner saves the staff profile, come back here and press ENTER to refresh.' -ForegroundColor Green
+    Read-Host 'Press ENTER after the Owner has added the staff' | Out-Null
+    continue
+  }
+  $n=0
+  if([int]::TryParse($choice,[ref]$n) -and $n -ge 1 -and $n -le $users.Count){$user=$users[$n-1];break}
+  # Backward compatibility: also accept the actual CRM user ID if somebody already knows it.
+  $idMatch=$users | Where-Object {[string]$_.id -eq $choice} | Select-Object -First 1
+  if($idMatch){$user=$idMatch;break}
+  Write-Host 'Invalid choice. Select the number shown next to the staff name.' -ForegroundColor Red
 }
-$user=$users | Where-Object {$_.id -eq $id} | Select-Object -First 1
-if(!$user){throw 'Invalid staff ID.'}
+$id=[int]$user.id
 
 $deviceName="$env:COMPUTERNAME / $env:USERNAME"
 try{
@@ -114,7 +156,7 @@ $sourceScript=Join-Path $ScriptDir 'open_staff_app.ps1'
 $launcherScript=Join-Path $common 'open_staff_app.ps1'
 Copy-Item -LiteralPath $sourceScript -Destination $launcherScript -Force
 $config=Join-Path $profile 'client.json'
-@{server_url=$server;user_id=$id;user_name=$user.name;device_token=$deviceToken;device_type='STAFF';configured_at=(Get-Date).ToString('o');client_version='2.11.1'} | ConvertTo-Json | Set-Content -LiteralPath $config -Encoding UTF8
+@{server_url=$server;user_id=$id;user_name=$user.name;device_token=$deviceToken;device_type='STAFF';configured_at=(Get-Date).ToString('o');client_version='2.11.3'} | ConvertTo-Json | Set-Content -LiteralPath $config -Encoding UTF8
 @{server_url=$server;user_id=$id;user_name=$user.name} | ConvertTo-Json | Set-Content -LiteralPath $lastCfg -Encoding UTF8
 
 # Tiny CMD launcher avoids PowerShell quoting problems on NAS paths.
