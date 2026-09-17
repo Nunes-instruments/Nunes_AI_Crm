@@ -1,0 +1,14 @@
+NUNES AI CRM V2.11.2 - GITHUB EMPTY REPOSITORY PUBLISH FIX
+
+Fixes the V2.11.1 first-publish failure where the safety scanner inspected the
+local .git metadata created by `git clone` and incorrectly treated .git/config,
+hooks and other Git internals as CRM files.
+
+V2.11.2 behavior:
+- The safety scan ignores .git metadata while continuing to block secrets,
+  databases, OAuth/token files, logs, runtime files, backups and staff photos.
+- GITHUB_PUBLISH_MASTER.bat option 1 can initialize an empty GitHub repository.
+- Only sanitized CRM source is staged and pushed.
+- After a successful push, the installed MAIN SERVER synchronizes from GitHub.
+- Owner and Staff web clients receive the new server version automatically.
+- Live CRM SQLite data is not part of the GitHub publish and is not erased.

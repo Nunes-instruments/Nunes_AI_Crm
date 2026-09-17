@@ -1,0 +1,11 @@
+NUNES AI CRM V2.7.7
+
+LIMITED-TIME OFFER + FRONTEND TEXT FIX
+
+- Removed the requested repeated Dashboard and My Leads guidance text.
+- Limited-Time Offer now accepts either Online Price or Regular Selling Price.
+- A saved verified selling price is reused when the online-price record is unavailable.
+- Manual offer values calculate immediately and can be sent by WhatsApp or Mail.
+- The server still enforces the approved minimum 30% safe margin.
+- Countdown and offer status flow remain unchanged.
+- All other CRM functions remain unchanged.

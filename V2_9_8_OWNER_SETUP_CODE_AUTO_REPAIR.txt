@@ -1,0 +1,17 @@
+NUNES AI CRM V2.9.8
+OWNER SETUP CODE AUTO-REPAIR
+
+FIXED
+- SHOW_OWNER_SETUP_CODE.bat no longer depends on a pre-existing OWNER_SETUP_CODE.txt file.
+- The script starts the local server automatically when needed.
+- If an older V2.9.x server process is still running after an incremental update, it is restarted once so the latest server code is active.
+- Added a localhost-only /api/device/owner-setup-code endpoint. Remote staff/owner PCs cannot read the setup code.
+- The server validates that OWNER_SETUP_CODE.txt matches the stored hash; if missing/corrupt it generates a new valid one.
+- Main server setup restarts the server once after an update so new code is active immediately.
+
+UNCHANGED
+- One database on the MAIN SERVER computer.
+- Separate OWNER overall view.
+- 10 locked individual staff profiles.
+- Shared live team race/reports.
+- Personal WhatsApp and Gmail per owner/staff computer.

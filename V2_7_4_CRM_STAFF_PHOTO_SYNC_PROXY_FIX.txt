@@ -1,0 +1,8 @@
+NUNES AI CRM V2.7.4
+
+- Staff photos are pulled from the connected company CRM user/staff directory when available.
+- Supports many CRM photo/avatar/profile-image field names and nested owner/user objects.
+- Dashboard images are served through the NUNES CRM server so protected LeadSphere image URLs can use the configured CRM authorization instead of failing in the browser.
+- Staff photo refresh runs shortly after startup and every 10 minutes, plus on CRM reconciliation.
+- Existing initials remain only as a safe fallback when the connected CRM provides no usable photo.
+- No other sales/dashboard/pricing/quotation workflow changed.

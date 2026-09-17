@@ -1,0 +1,27 @@
+NUNES AI CRM v1.2.2 - DEFAULT LEADSPHERE CONNECTION
+
+LeadSphere connection settings are stored locally on the main server and are not committed to GitHub.
+
+Normal use:
+1. Extract the ZIP.
+2. Run INSTALL_CRM.bat once if needed.
+3. Run START_CRM.bat.
+
+START_CRM automatically:
+- Keeps any existing local LeadSphere server and leads endpoint.
+- Keeps the Windows-user encrypted API key already configured on this PC.
+- Never publishes or copies the API key through GitHub.
+- Refreshes the local webhook URL using this PC's Tailscale IP when available.
+
+To change anything later:
+Run CONFIGURE_COMPANY_CRM.bat.
+- Press ENTER to keep all defaults.
+- Type C to enter change mode.
+- In change mode, press ENTER on any field you do not want to change.
+- Choose Y at the API-key question only when replacing the local key.
+
+Connection test:
+Run 0_TEST_LEADSPHERE_CONNECTION.bat.
+
+Manual repair:
+Run 0_REPAIR_LEADSPHERE_CONNECTION.bat.

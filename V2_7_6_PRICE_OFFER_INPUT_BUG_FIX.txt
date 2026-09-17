@@ -1,0 +1,11 @@
+V2.7.6 PRICE / LIMITED-OFFER INPUT BUG FIX
+
+- Fixed the grey/non-editable numeric fields shown in Price Information and Limited-Time Offer.
+- Online Price is editable. If exact online research is unavailable, staff can enter the verified/base price manually.
+- Manual Online Price is stored safely as a Manual Price Entry and is reused after refresh/restart.
+- Margin % is directly editable within the INDIA / EXPORT allowed range; the pencil icon now focuses the field instead of locking/unlocking it.
+- Final Selling Price is editable and remains synchronized with Online Price + Margin when those inputs change.
+- Limited-Time Offer Validity, Offer Discount, Regular Selling Price and Limited Offer Price are all editable.
+- No Limited-Time Offer numeric field is disabled just because online research did not find a price.
+- Safe Margin Protection remains enforced on the server. If staff enters an unsafe discount/offer price, the server clamps it to the minimum approved margin instead of allowing a loss.
+- Existing CRM, dashboard, staff photos, Gmail, WhatsApp, Gemini, quotations and old data behavior are unchanged.

@@ -1,0 +1,13 @@
+NUNES AI CRM V2.5.9 — GEMINI PRODUCT LIBRARY FIX
+
+Changed only Product Information generation/reuse.
+
+- Product Name remains the source of truth.
+- Gemini now defaults to gemini-flash-latest and automatically falls back to compatible Flash models when an older model is unavailable for a new API key.
+- Gemini requests use the current x-goog-api-key header.
+- Product generation still returns the same four sections: Specification, Description, Key Features, Applications.
+- If grounded evidence is unavailable, a complete Gemini record can still be shown; precise unsupported values are marked NEEDS VERIFICATION instead of silently disappearing.
+- Complete generated products are stored permanently by default (PRODUCT_INTELLIGENCE_CACHE_DAYS=0).
+- The same normalized product/model is reused for future staff enquiries without another Gemini call.
+- Cache use count and last-used time are tracked.
+- Existing company CRM connection, Google Sheet pricing, lead form, qualification, quotation, follow-up, reports and all other behaviour are unchanged.

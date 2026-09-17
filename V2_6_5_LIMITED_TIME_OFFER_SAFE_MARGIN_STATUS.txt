@@ -1,0 +1,14 @@
+NUNES AI CRM V2.6.5 - LIMITED-TIME OFFER / SAFE MARGIN / STATUS
+
+Add-only update. Existing CRM workflow remains unchanged.
+
+- Limited-Time Offer card added after Price Information.
+- Default validity is 10 minutes; staff can set a custom validity from 1 to 1440 minutes.
+- Offer can be sent through the existing WhatsApp Web or Gmail connections.
+- Gmail starts the countdown only after Gmail confirms the message send API succeeded.
+- WhatsApp Web does NOT start the countdown when the chat is merely opened. Staff clicks "WhatsApp Sent - Start Countdown" only after actually pressing Send in WhatsApp.
+- Safe Margin Protection is enforced on the server. The offer price can never go below the minimum 30% margin floor.
+- Any requested/AI discount is clamped to the safe maximum discount for the current base price and regular selling margin.
+- Offer status is stored: Active / Accepted / Expired / Declined. Pending Send is used internally for WhatsApp until actual send is confirmed.
+- Active offers expire automatically from their real sent_at time.
+- Previous CRM, Gemini Product Information, online price, India/Export margin, budget request, quotation, CRM sync and other behavior is unchanged.

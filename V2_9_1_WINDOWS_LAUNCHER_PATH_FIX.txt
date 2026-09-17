@@ -1,0 +1,20 @@
+NUNES AI CRM V2.9.1 - WINDOWS DESKTOP LAUNCHER PATH FIX
+
+PROBLEM FIXED
+- On some Windows systems OPEN_NUNES_CRM.bat passed a folder ending in a backslash
+  to PowerShell as a quoted argument.
+- Windows argument parsing could leave a literal quote in that folder value.
+- PowerShell then failed at Test-Path with: Illegal characters in path.
+
+V2.9.1 FIX
+- The desktop launcher no longer passes the CRM root folder on the command line.
+- open_crm_app.ps1 derives the correct local CRM root from its own script location.
+- A defensive normalizer repairs old/bad root values if a legacy shortcut still passes one.
+- active_port.txt is validated before use.
+- Startup waits longer for the main server on slower PCs.
+- The one-main-server / ten-staff-desktop-app design is unchanged.
+
+DAILY USE
+- Main PC: double-click "NUNES AI CRM" on Desktop.
+- Staff PCs: double-click "NUNES AI CRM - <Staff Name>" on Desktop.
+- Staff PCs do not run SQLite, Node.js server, or the CRM ZIP.

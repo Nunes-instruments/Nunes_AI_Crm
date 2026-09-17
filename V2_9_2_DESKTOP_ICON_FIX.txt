@@ -1,0 +1,9 @@
+NUNES AI CRM V2.9.2 - DESKTOP ICON FIX
+
+- Adds a proper NUNES AI CRM Windows .ico file matching the CRM favicon.
+- Main-PC setup now creates a branded NUNES AI CRM.lnk shortcut.
+- Staff-PC setup creates the same branded icon for each staff shortcut.
+- Handles standard Desktop, redirected Desktop and OneDrive Desktop locations.
+- Adds REPAIR_DESKTOP_ICON.bat for computers where CRM is already installed and running.
+- Requests a Windows icon refresh after the shortcut is created.
+- Does not change CRM data, product intelligence, LeadSphere, Gemini, reports or staff logic.

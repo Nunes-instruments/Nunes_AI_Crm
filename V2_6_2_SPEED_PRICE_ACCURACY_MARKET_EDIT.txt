@@ -1,0 +1,15 @@
+NUNES AI CRM V2.6.2
+
+Changes only in product/price intelligence:
+- India / Export pricing type is editable directly in Price Information.
+- India margin policy: default 30%, normal 30-40%.
+- Export margin policy: default 30%, normal 30-60%.
+- Saved complete product records are reused instead of calling Gemini again.
+- New product generation uses one fast grounded Gemini synthesis path by default.
+- New-lead product generation and online price research start in parallel.
+- Search Price Again refreshes PRICE ONLY and no longer waits for product regeneration.
+- IndiaMART and Gemini Google Search price discovery now run in parallel with strict exact-model checks.
+- Price candidates without a verifiable supporting URL are skipped.
+- Online search timeouts/variant counts reduced to keep the form responsive.
+- Original / Online Price no longer falls back to historical selling/purchase values.
+- Existing Company CRM, WhatsApp/Gmail budget request, quotation and other functions remain unchanged.

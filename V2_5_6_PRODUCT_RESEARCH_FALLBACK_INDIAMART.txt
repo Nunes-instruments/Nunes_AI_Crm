@@ -1,0 +1,25 @@
+NUNES AI CRM V2.5.6
+PRODUCT RESEARCH FALLBACK + INDIAMART INTELLIGENCE
+
+Product Information only update.
+
+Automatic fallback order:
+1. Verified Internal Product Master
+2. Connected Drive / Google Sheet / Product Master evidence
+3. Manufacturer / official technical research
+4. IndiaMART public product research
+5. Other reliable public technical research
+6. Gemini evidence synthesis
+
+Safety / accuracy rules:
+- Exact model mismatch evidence is rejected.
+- Different models are never mixed to build one exact-model specification.
+- IndiaMART seller contact information and marketplace prices are excluded from technical specifications.
+- IndiaMART prices do not feed CRM selling price.
+- Precise technical values must be tied to collected evidence; unsupported exact figures are blanked.
+- Successful final product records are cached and reused.
+- Product name/brand/model changes clear stale product-specific display overrides and trigger new research.
+- Normal staff UI shows only Generating product details..., final Product Information, or one service/error message.
+- Description remains bullet formatted in the lead page.
+
+Existing CRM LIVE, one-page form, database, Google Sheet price search and BAT deployment are preserved.

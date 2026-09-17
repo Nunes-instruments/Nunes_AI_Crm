@@ -1,0 +1,15 @@
+NUNES AI CRM V2.11.0
+GITHUB SOURCE OF TRUTH + AUTOMATIC SERVER / OWNER / STAFF UPDATE
+
+1. GitHub main is the canonical application code.
+2. Main server checks GitHub VERSION.txt every 5 minutes by default.
+3. Newer GitHub version triggers a safe background update on Windows.
+4. Update downloads branch ZIP over HTTPS and validates required files.
+5. SQLite pre-update backup is mandatory before installed program files are changed.
+6. data/, backups/, logs/, runtime/ and the installed .env are preserved.
+7. Old leads, quotations, customer history, staff activity, hold reasons, reports and device links remain in the same central database.
+8. Server restarts automatically after a successful GitHub update.
+9. Owner and Staff web apps poll server version and reload automatically.
+10. Desktop launchers self-update from the main server.
+11. UPDATE_FROM_GITHUB_NOW.bat allows an immediate manual check.
+12. Secrets/live data/staff photos are intentionally excluded from the public repository.

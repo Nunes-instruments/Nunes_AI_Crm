@@ -1,0 +1,31 @@
+NUNES AI CRM V2.5.0
+
+Automatic Product Specification Intelligence update.
+
+Preserved:
+- Existing SQLite data and external CRM IDs
+- LeadSphere live synchronization
+- Simple one-page lead form
+- Windows BAT deployment
+- Company price lookup, quotation, follow-up, scoring, duplicate detection
+
+Added:
+- Server-only GEMINI_API_KEY loading from .env
+- Optional CONFIGURE_PRODUCT_INTELLIGENCE.bat helper
+- GeminiProductIntelligenceProvider service architecture
+- Product identity normalization (original name is preserved)
+- Dynamic product-specific specification schemas
+- Exact-model identity confidence
+- Manufacturer/search-source metadata
+- Protection against unverified precise technical values
+- Shared product intelligence cache for repeated products
+- Manual lead specification/content overrides remain authoritative
+- Asynchronous background product intelligence; lead form opens immediately
+- Automatic product block refresh when background analysis completes
+- Product source viewer and quiet refresh action
+
+Display order remains:
+SPECIFICATIONS
+DESCRIPTION
+KEY FEATURES
+APPLICATIONS

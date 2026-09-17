@@ -1,0 +1,14 @@
+{
+  "name": "nunes-ai-sales-intelligence-crm",
+  "version": "2.11.1",
+  "private": true,
+  "type": "module",
+  "description": "Nunes AI CRM V2.11.1: GitHub source-of-truth updates on the main server, automatic Owner/Staff web refresh, self-updating desktop launchers, and data-safe upgrades that preserve the live CRM database.",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "CRM_NO_BROWSER=1 node server.mjs"
+  }
+}

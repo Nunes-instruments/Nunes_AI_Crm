@@ -1,0 +1,18 @@
+NUNES AI CRM v1.2.1 - LeadSphere Connection Fix
+
+Fixed:
+- Windows PowerShell UTF-8 BOM in company-crm.json causing Node JSON.parse failure.
+- UTF-8 BOM/newline in encrypted API key causing ConvertTo-SecureString FormatException.
+- Existing v1.2 saved connection can be repaired without changing API key.
+- START_CRM now silently repairs legacy connection-file encoding before startup.
+- CONFIGURE_COMPANY_CRM now writes BOM-free files and performs an immediate live API test.
+- Tailscale webhook URL is auto-detected when possible.
+
+Existing installation:
+1. Extract the HOTFIX over the existing Nunes_AI_CRM_Windows folder.
+2. Run 0_REPAIR_LEADSPHERE_CONNECTION.bat once.
+3. Close old CRM window.
+4. Run START_CRM.bat.
+5. Run 0_TEST_LEADSPHERE_CONNECTION.bat.
+
+If repair says the encrypted key cannot be decrypted, run CONFIGURE_COMPANY_CRM.bat again under the same Windows user and paste the LeadSphere API key.

@@ -1,0 +1,10 @@
+NUNES AI CRM V2.7.3
+
+Update scope only:
+- Staff names remain the real names from the connected CRM.
+- Staff profile photo/image fields from LeadSphere lead-owner data are synchronized into the local staff profile when available.
+- Dashboard now shows three performance races at the same time: Today Sprint, Weekly Race and Monthly Championship.
+- Each race shows real staff photo/name, completed forms, waiting, pending, not-purchased and orders.
+- Leader panels, medals, animated race bars and profile runners are designed to make team progress immediately visible and more engaging.
+- Clicking a race row still opens that staff member's details for the owner.
+- Existing quotations, Gmail, Gemini, pricing, backups, old data and all sales workflow remain unchanged.

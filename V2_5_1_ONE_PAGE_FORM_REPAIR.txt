@@ -1,0 +1,55 @@
+NUNES AI CRM V2.5.1 — ONE-PAGE FORM REPAIR
+============================================
+
+Scope
+-----
+Updated the existing CRM in place. No project rebuild, database reset, workflow replacement, or BAT deployment changes were made.
+
+Implemented
+-----------
+- Repaired the one-page lead form into a readable two-column digital-paper layout.
+- Mobile layout collapses to one column without horizontal form scrolling.
+- Real inputs, selects, radio groups, checkboxes and textareas with unique IDs and associated labels.
+- Clean lead header and equally spaced Call / WhatsApp / Email / Quote actions.
+- Empty Email action is disabled instead of producing an empty mailto link.
+- Marketing Person / Owner is a normal single-select control.
+- Missing editable values render as blank controls rather than repeated status text.
+- Buyer Requirement layout repaired, including Yes / No / Unknown choices where required.
+- Original Customer Enquiry is a separate read-only textarea.
+- Product Intelligence renders in this order: Specifications, Description, Key Features, Applications.
+- Product specifications include product identity rows and category-appropriate specification rows.
+- Price Information no longer presents zero as a missing price.
+- Price lookup checks internal price records, company product-master data and quotation history.
+- Qualification, budget, urgency, buyer role, decision level, intent and buying signals render as direct choices.
+- Contact/follow-up, objections, quotation, order status and sales notes repaired.
+- Lost Reason and Budget Amount only appear when relevant.
+- Qualification choices recalculate lead score through the existing server workflow.
+- Radio/select/checkbox/date/time changes autosave immediately; typed text fields use debounced autosave.
+- Save and Save & Close remain available with visible save state.
+- Nepal/export phone numbers are preserved; country-to-India/Export mapping remains intact.
+- Existing CRM LIVE / LeadSphere sync and server-side Gemini configuration are preserved.
+- Existing Windows BAT files are unchanged.
+
+Validation performed
+--------------------
+- node --check public/app.js: PASS
+- node --check server.mjs: PASS
+- Application health endpoint: PASS (V2.5.1)
+- Generated-form DOM validation: PASS
+  * no duplicate IDs
+  * no orphaned labels
+  * Owner select is single-value
+  * required radio/checkbox groups are visible
+  * no concatenated label/button/YES-NO markers
+  * required product-content section order is correct
+- Acceptance data persistence test using NS-000031-style Nepal lead: PASS
+  * international +977 phone preserved
+  * qualification/follow-up/order/specification changes persisted
+  * Unknown requirement state remains unknown rather than being converted to No
+  * failed price search remains blank rather than becoming 0
+- Company product-master price lookup test: PASS
+- BAT checksum comparison against uploaded project: PASS
+
+Test note
+---------
+The sandbox's managed Chromium policy blocks local application pages, so graphical browser automation could not be used here. The form renderer DOM and live server/API persistence paths were tested directly instead.

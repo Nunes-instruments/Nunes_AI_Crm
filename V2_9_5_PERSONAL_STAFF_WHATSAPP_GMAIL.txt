@@ -1,0 +1,18 @@
+NUNES AI CRM V2.9.5
+
+MESSAGING CHANGE ONLY
+- Removed shared company WhatsApp sending.
+- Removed shared company Gmail OAuth sending.
+- Every staff PC/browser uses its own WhatsApp Web login.
+- Every staff PC/browser uses its own Gmail login.
+- Staff signs in once in that browser; normal browser cookies keep the account logged in.
+- WhatsApp buttons open the customer message in that staff member's WhatsApp Web.
+- Gmail buttons open a pre-filled compose window in that staff member's Gmail.
+- Quotation and Proforma Invoice PDFs open separately for manual attachment before Send.
+- Limited-offer countdown starts only after the staff member confirms the message/email was actually sent.
+
+UNCHANGED
+- One central CRM database on the main server.
+- All staff see the same live race and aggregate Team Reports.
+- Staff detailed enquiry access remains limited to assigned enquiries.
+- NAS/UNC staff setup fix and desktop shortcut process remain unchanged.

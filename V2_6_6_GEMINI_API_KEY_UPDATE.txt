@@ -1,0 +1,3 @@
+NUNES AI CRM V2.6.6
+Change: Gemini API key updated in the packaged .env file only.
+No application logic, UI, CRM connection, pricing, messaging, product generation, or offer workflow was changed.

@@ -1,0 +1,23 @@
+NUNES AI CRM V2.5.7 — DYNAMIC EXACT-PRODUCT INFORMATION GENERATION
+=====================================================================
+
+Updated only Product Information generation/display.
+
+Preserved:
+- existing CRM and database
+- one-page lead form
+- CRM LIVE
+- Google Sheet / Drive price intelligence
+- ProductResearchOrchestrator fallback chain
+- IndiaMART product research
+- Windows BAT deployment
+
+Final staff display:
+SPECIFICATIONS — two-column Specification / Value table
+PRODUCT DESCRIPTION — one professional paragraph
+KEY FEATURES — numbered list
+APPLICATIONS — bullet list
+
+Product Name remains the source of truth. Specifications are selected dynamically for the actual product/category. Exact unsupported numeric claims are omitted. Different models are not mixed. Generic CRM/sales guidance is filtered.
+
+Added explicit Refractometer / ATAGO / MERA PAL identity support for the example in the generation prompt.

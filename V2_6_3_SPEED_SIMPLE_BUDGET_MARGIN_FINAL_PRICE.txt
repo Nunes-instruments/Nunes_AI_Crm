@@ -1,0 +1,26 @@
+NUNES AI CRM V2.6.3
+
+REQUESTED CHANGES ONLY
+
+1. Product Information generation speed
+   - Gemini 3.8 Flash thinking level LOW.
+   - Fast generation path.
+   - Exact brand/model can use Google Search grounding.
+   - Removed global Gemini request serialization.
+   - Lead analysis concurrency increased to 3.
+   - UI polling changed to 1 second.
+
+2. Missing Budget
+   - Only WhatsApp and Mail buttons are shown.
+   - Removed explanatory box/text/settings link.
+
+3. Pricing Type
+   - INDIA — 30% to 40%.
+   - EXPORT — 30% to 60%.
+   - Default margin 30%.
+   - Pencil icon unlocks margin editing.
+   - Margin constrained to selected range.
+   - Final Selling Price = Online Price + margin and is read-only.
+   - Selected margin is preserved across Search Price Again.
+
+No other business workflow changes.

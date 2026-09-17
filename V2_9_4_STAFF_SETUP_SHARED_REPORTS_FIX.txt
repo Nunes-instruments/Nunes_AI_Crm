@@ -1,0 +1,28 @@
+NUNES AI CRM V2.9.4 - STAFF SETUP + SHARED REPORTS/RACE + COMPANY MESSAGING
+
+FIXED STAFF PC SETUP
+- Fixed PowerShell ParserError in setup_staff_pc.ps1 caused by invalid quote escaping.
+- SETUP_STAFF_PC.bat now uses PUSHD so setup also works when launched from a NAS/UNC path such as \\Nunes_Nas\Common\...
+- Each staff PC still installs only a lightweight local launcher/config and desktop shortcut.
+- Staff PCs do not run SQLite or a second CRM server.
+
+SHARED TEAM DATA
+- All staff desktop apps connect to the same main CRM server and the same database.
+- A staff save/update increments the central data revision.
+- Dashboards and Team Reports poll the revision every 8 seconds and refresh when another staff member changes data.
+- Every staff member can see the shared aggregate Team Reports and Today/Week/Month team race.
+- Customer enquiry details remain limited to the assigned staff member; owner can still see all.
+
+SHARED GMAIL
+- Owner connects Gmail once on the main CRM server.
+- All staff email actions use that central company Gmail token.
+- Staff cannot replace/disconnect the Gmail connection.
+- Communication records use the staff member who triggered the send.
+
+SHARED WHATSAPP
+- For one WhatsApp connection that truly works for all staff PCs, configure Company WhatsApp (WhatsApp Business Cloud API) once in Admin Settings.
+- Staff WhatsApp actions are then sent server-side through that same company connection.
+- WhatsApp Web remains a fallback; a WhatsApp Web browser login is per PC and cannot be shared as one browser session across all computers.
+
+DATA SAFETY
+- Existing live database, Gmail token, Gemini settings, LeadSphere settings, quotations and other user data are preserved by the installer.

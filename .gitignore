@@ -1,0 +1,41 @@
+# NUNES AI CRM - source repository only.
+# Never commit live company data, credentials, OAuth tokens or device sessions.
+.env
+.env.*
+!.env.example
+
+runtime/
+logs/
+backups/*
+!backups/README.txt
+
+data/*
+!data/README.txt
+
+# Staff photos stay only on the company server unless intentionally published.
+public/staff-photos/*
+!public/staff-photos/README.txt
+
+# Machine-generated discovery/runtime state.
+config/staff-server.json
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.pid
+*.tmp
+*.new
+
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Extra local credential/session files that must never be committed.
+client.json
+data/company-crm.json
+data/company-crm-key.txt
+**/credentials*.json
+**/client_secret*.json
+**/oauth*.json
+**/token*.json

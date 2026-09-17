@@ -1,0 +1,31 @@
+NUNES AI CRM V2.11.1 - GITHUB SOURCE OF TRUTH
+
+Repository:
+https://github.com/Nunes-instruments/Nunes_AI_Crm
+Branch: main
+
+FLOW
+1. Code is updated in GitHub main.
+2. The main CRM server checks GitHub VERSION.txt every 5 minutes by default.
+3. If GitHub has a newer semantic version, the server launches the safe GitHub updater.
+4. The updater downloads the GitHub branch ZIP over HTTPS and validates required application files.
+5. Before replacing program files, the live SQLite database is backed up using SQLite backup API.
+6. The installer preserves data/, backups/, logs/, runtime/, existing .env and machine/device settings.
+7. The main server restarts with the new version.
+8. Owner and Staff browser apps poll /api/health and automatically reload when the server version changes.
+9. Owner/Staff desktop launchers check the main server and self-update when opened.
+
+DATA SAFETY
+- The GitHub repository NEVER contains the live SQLite database.
+- The GitHub repository NEVER contains .env, API keys, OAuth tokens, Gmail tokens, device tokens, LeadSphere secrets or live company-crm data.
+- The updater never intentionally overwrites the installed data/ folder.
+- A pre-update backup is mandatory when a live database exists. If backup fails, installation stops.
+
+MANUAL IMMEDIATE UPDATE
+Run UPDATE_FROM_GITHUB_NOW.bat on the main server.
+
+DISABLE AUTOMATIC GITHUB UPDATE
+Set CRM_GITHUB_AUTO_UPDATE=false in the server .env and restart CRM.
+
+CHANGE CHECK FREQUENCY
+Set CRM_GITHUB_UPDATE_CHECK_MINUTES=5 (or another number >= 1) in .env.

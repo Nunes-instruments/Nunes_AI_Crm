@@ -1,0 +1,48 @@
+{
+  "app_name": "NUNES AI SALES INTELLIGENCE CRM",
+  "company": "Nunes Instrumentation",
+  "port": 8765,
+  "bind_host": "0.0.0.0",
+  "pipeline_stages": [
+    "NEW",
+    "QUALIFIED",
+    "REQUIREMENT CONFIRMED",
+    "PRODUCT SELECTED",
+    "PRICE VERIFIED",
+    "QUOTATION READY",
+    "QUOTATION SENT",
+    "NEGOTIATION",
+    "ORDER EXPECTED",
+    "WON",
+    "LOST",
+    "NURTURE"
+  ],
+  "integrations": [
+    {
+      "name": "Google Drive",
+      "status": "Not Connected"
+    },
+    {
+      "name": "Gmail / Email",
+      "status": "Not Connected"
+    },
+    {
+      "name": "WhatsApp",
+      "status": "Not Connected"
+    },
+    {
+      "name": "IndiaMART API",
+      "status": "Not Connected"
+    },
+    {
+      "name": "LeadSphere CRM",
+      "status": "Setup Required — Tailscale connector ready"
+    },
+    {
+      "name": "AI Provider",
+      "status": "Not Connected"
+    }
+  ],
+  "default_price_sheet_url": "",
+  "price_sheet_auto_refresh_minutes": 60
+}

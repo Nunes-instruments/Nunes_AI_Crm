@@ -1,0 +1,44 @@
+NUNES AI CRM - FIRST GITHUB PUBLISH
+
+Repository: Nunes-instruments/Nunes_AI_Crm
+Branch: main
+
+The repository must contain the CONTENTS of this folder at its root:
+- VERSION.txt
+- server.mjs
+- public/
+- services/
+- providers/
+- scripts/
+- .github/
+- and the other application/setup files
+
+DO NOT upload live server files:
+- .env
+- data/nunes-crm.sqlite*
+- data/company-crm.json
+- data/company-crm-key.txt
+- OAuth/Gmail/Google tokens
+- backups/
+- logs/
+- runtime/
+- client.json/device tokens
+- staff photos
+
+EASIEST FIRST PUBLISH:
+Run GITHUB_PUBLISH_MASTER.bat.
+- Option 1 pushes with Git from this computer (browser sign-in may appear).
+- Option 2 creates a sanitized Desktop folder for manual GitHub web upload.
+
+After the first V2.11.1 code is on GitHub main and V2.11.1 is installed once on the main server:
+1. Future code changes go to GitHub main.
+2. Increment VERSION.txt for every production release (example 2.11.1 -> 2.11.2).
+3. Main server checks GitHub automatically every 5 minutes.
+4. New version is downloaded and validated.
+5. SQLite pre-update backup is created.
+6. Program code updates; live data/settings remain untouched.
+7. Server restarts.
+8. Owner and all Staff browser apps reload automatically.
+9. Desktop launcher self-updates from the server when opened.
+
+For an immediate check on the main server, run UPDATE_FROM_GITHUB_NOW.bat.

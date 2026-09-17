@@ -1,0 +1,40 @@
+NUNES AI CRM V2.3.0 — FINAL SIMPLE SINGLE-FORM UPDATE
+
+This is a safe upgrade of the existing CRM. It does not require a database reset.
+
+STAFF LEAD PAGE
+- One continuous Lead Form on one URL.
+- No 12-step workflow boxes, no progress navigator, no tabs, no Save & Next.
+- Quick actions only: Call, WhatsApp, Email, Quote.
+- Customer & Lead Details.
+- Buyer Requirement + Original Enquiry.
+- Dynamic Product Specifications.
+- Product Description.
+- Key Features.
+- Applications.
+- Price Information + verification.
+- Lead Qualification quick-select controls.
+- Sales Action: value, recommended products, verified urgency and objections.
+- Customer Contact / Follow-Up.
+- Quotation / Order Status + nurture.
+- Final Notes.
+- Save and Save & Close only.
+- Safe auto-save for form changes.
+
+12 SALES PRINCIPLES
+All 12 principles remain implemented in the backend/playbook and are automatically synchronized from the single form. Staff do not see or manage 12 workflow screens.
+
+DATA SAFETY
+- Existing SQLite CRM database is not included in this update ZIP.
+- Existing LeadSphere integration and external IDs are preserved.
+- Existing Windows BAT startup/deployment is preserved.
+- Existing customers/leads/quotations are migrated in place.
+
+V2.3 DATABASE ADDITIONS
+- Editable per-lead specification overrides.
+- Per-lead product description/features/applications overrides.
+- Single-form qualification, value, solution, urgency, order, contact and notes fields.
+
+PRICE RULE
+- Missing price stays blank with a small verification note.
+- ₹0 is never presented as a valid selling price.

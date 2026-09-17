@@ -1,0 +1,20 @@
+NUNES AI CRM V2.5.2
+
+Continuation update applied to the existing project.
+
+- Removed Call / WhatsApp / Email / Quote header boxes from the employee lead form.
+- Header now shows actual customer name, phone, email, location and lead level/probability.
+- Removed visible Buyer Requirement section without deleting stored requirement data.
+- Product Intelligence remains automatic and server-side.
+- Employee Product Information now uses one consistent readable format:
+  SPECIFICATIONS -> DESCRIPTION -> KEY FEATURES -> APPLICATIONS.
+- Removed the editable specification table from normal employee view.
+- Price Information now shows matched product + match %, never displays zero prices, and keeps Search Price Again as a small utility action.
+- Added Future Requirement directly to the same one-page form.
+- Added Admin Settings -> Price Data Source with one Google Drive / Google Sheet link field.
+- Public/shared Google Sheets and Drive files can be imported and indexed locally.
+- XLSX, CSV and JSON price files are parsed without adding npm dependencies.
+- Multi-sheet XLSX files are indexed across worksheets.
+- Optional private Google Drive authorization is server-side OAuth only; tokens are stored in data/google-drive-auth.json, never browser localStorage.
+- The source Google file is read-only; CRM writes only a local data/product-master.json index.
+- Existing CRM database, leads, LeadSphere CRM LIVE sync and BAT files are preserved.

@@ -1,0 +1,12 @@
+NUNES AI CRM V2.10.1
+
+STAFF WORK PAGE BACK BUTTON - DATA SAFE UI FIX
+
+1. Added a large visible Back button at the top of the single-page Lead Form / staff working page.
+2. Staff see "Back to My Leads"; Owner sees "Back to Leads".
+3. The Back button saves the latest form changes before leaving the working page.
+4. If saving fails, CRM stays on the lead and shows an error instead of losing the staff member's latest work.
+5. The button is touch-friendly and remains visible/readable on smaller Windows screens.
+6. No database schema, historical leads, quotations, staff work, reports, WhatsApp/Gmail setup, roles, race, or notification logic was changed.
+7. Update the MAIN SERVER only with UPDATE_REPAIR_SERVER.bat. Owner and staff receive the web UI change from the central server after reopening/refreshing CRM.
+8. Desktop launcher version remains V2.10.0 because no Windows launcher change is required for this UI fix.

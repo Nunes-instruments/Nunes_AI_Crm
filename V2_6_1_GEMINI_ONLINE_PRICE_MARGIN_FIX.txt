@@ -1,0 +1,44 @@
+NUNES AI CRM V2.6.1
+
+CHANGED ONLY THE REQUESTED PRODUCT/PRICE INTELLIGENCE AREA.
+
+1. Gemini product generation
+- Server-side Gemini key is already included in this build.
+- Uses current Gemini Flash model with automatic fallback models.
+- Product Name remains the source of truth.
+- Generates Specifications, Description, Key Features and Applications.
+- Generated product information is stored/reused for repeated enquiries.
+- The form shows the safe Gemini failure reason if generation fails.
+
+2. Exact online price research
+- Searches IndiaMART first for the exact product/model.
+- Falls back to Gemini grounded online search when needed.
+- Never accepts a similar model when an exact model was requested.
+- If confidence is insufficient, no price is guessed; the form shows why the online price was skipped.
+- GST, supplier and stock are filled only when available from matched evidence.
+
+3. Price form simplified
+Removed from the visible price form:
+- Last Purchase Price
+- Last Selling Price
+- Previous Quoted Price
+- Lead Time
+- Source input
+
+Visible price fields:
+- Original / Online Price
+- Margin %
+- Selling Price
+- GST
+- Supplier
+- Price Date
+- Stock
+- Price Verified
+
+4. India / Export pricing
+- Default margin: 30%
+- INDIA normal range: 30% to 40%
+- EXPORT normal range: 30% to 60%
+- Margin remains editable. Selling Price recalculates from the original/reference price.
+
+All other CRM functions remain unchanged, including Company CRM, product library reuse, WhatsApp/Gmail budget request, quotations and follow-ups.

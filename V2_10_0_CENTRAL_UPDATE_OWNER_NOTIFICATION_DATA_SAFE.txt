@@ -1,0 +1,19 @@
+NUNES AI CRM V2.10.0
+
+CENTRAL UPDATE + OWNER NOTIFICATION + DATA SAFETY
+
+1. MAIN SERVER is the only application/database host.
+2. OWNER sees all 10 staff, hold reasons, completed work and live CRM notifications.
+3. STAFF sees only assigned enquiries and can mark work Active / On Hold / Completed.
+4. On Hold requires a reason. Owner can immediately see who placed the enquiry on hold and why.
+5. Completing a work item creates an owner CRM notification automatically.
+6. Final Save of the single-page lead form automatically marks the work Completed and notifies the owner once.
+7. Owner notification bell shows unread staff completion/hold/resume updates.
+8. Existing leads/data are migrated in-place with additive columns only. No table is dropped or recreated.
+9. Main server update creates a PRE-UPDATE database backup before replacing application files.
+10. UPDATE_REPAIR_SERVER.bat is the normal future update button on the MAIN SERVER.
+11. Owner/staff launchers installed from V2.10.0 check the main server for launcher updates every time they open CRM.
+12. Future server/UI changes are immediate for every owner/staff browser because the pages are served centrally.
+13. Future desktop-launcher changes self-update from the server after the V2.10.0 client setup has been installed once.
+14. Personal WhatsApp and Gmail remain unique to each owner/staff Windows/browser profile.
+15. Default known Tailscale server fallback: <MAIN-SERVER-ADDRESS>

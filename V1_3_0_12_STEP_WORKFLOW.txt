@@ -1,0 +1,24 @@
+NUNES AI CRM V1.3.0
+
+Implemented:
+1. Qualify Leads
+2. Follow Up Promptly
+3. Understand Customer Needs
+4. Present Clear Value
+5. Offer Solutions
+6. Provide Detailed Information
+7. Create Urgency
+8. Address Objections
+9. Use Professional Proposals
+10. Ask for the Order
+11. Follow Up
+12. Nurture Relationships
+
+Also fixed:
+- Today dashboard no longer remains at stale zero after LeadSphere imports.
+- New Lead count follows the actual NEW pipeline stage.
+- Dashboard refreshes live after background imports.
+- Lead budget can populate expected opportunity value when no value exists.
+- LeadSphere quotation-sent records can advance NEW leads to QUOTATION SENT.
+- Existing databases automatically gain the new playbook fields and full stage names.
+- Existing default LeadSphere connection and loading-speed optimizations are preserved.

@@ -1,0 +1,12 @@
+NUNES AI CRM V2.7.8
+
+LIMITED-TIME OFFER CALCULATION REPAIR
+
+- Enter Regular Selling Price and the Limited Offer Price is calculated immediately.
+- The default AI suggestion becomes 4% when it is inside the safe discount limit.
+- Safe maximum discount and margin-after-discount update live.
+- India uses the approved 40% regular-margin ceiling when the cost price is missing.
+- Export uses the approved 60% regular-margin ceiling when the cost price is missing.
+- No offer can fall below the approved 30% minimum margin.
+- WhatsApp, Mail, countdown and offer status behavior are preserved.
+- No unrelated CRM feature was changed.

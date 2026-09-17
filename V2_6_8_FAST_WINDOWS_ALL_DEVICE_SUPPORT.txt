@@ -1,0 +1,30 @@
+NUNES AI CRM V2.6.8 - FAST WINDOWS + ALL DEVICE SUPPORT
+
+ONLY compatibility / installation / responsive-device changes were added to V2.6.7.
+Existing CRM functions, Gemini logic, sales assistant, pricing, offers, WhatsApp/Gmail and Company CRM logic remain unchanged.
+
+FAST WINDOWS SETUP
+- No npm install and no developer-tool installation.
+- START_CRM.bat can prepare the runtime automatically on first use.
+- INSTALL_CRM.bat performs fast setup and then starts the CRM automatically.
+- Compatible existing Node.js is reused when available.
+- Otherwise one portable Node runtime is downloaded once and cached under the current Windows user's Local AppData.
+- The same cached runtime is reused by later NUNES AI CRM versions.
+- Runtime download uses one direct official Node ZIP instead of first downloading/parsing the release index.
+- Only node.exe is extracted from the ZIP; npm and thousands of unused runtime files are not extracted.
+- SHA-256 integrity verification is performed before the runtime is used.
+- x64, x86/32-bit and ARM64 Windows processor packages are handled automatically.
+- A desktop shortcut is created during INSTALL_CRM.bat when Windows Script Host is available.
+- NUNES_AI_CRM.bat is an additional one-click launcher.
+
+DEVICE SUPPORT
+- Existing responsive UI was retained and strengthened for smaller touch screens.
+- Desktop/laptop layout is unchanged.
+- Added touch-target and narrow-phone safeguards.
+- CRM continues binding to the office network for browser access from other devices when Windows Firewall allows it.
+- SHOW_OTHER_DEVICE_LINKS.bat displays local LAN/Tailscale browser addresses.
+
+IMPORTANT
+- First use on a Windows PC needs internet only if a compatible Node runtime is not already installed/cached.
+- Future starts do not redownload the runtime.
+- SETUP_FIREWALL.bat remains the one-time Administrator step if phone/tablet/other-PC access is required on the LAN.

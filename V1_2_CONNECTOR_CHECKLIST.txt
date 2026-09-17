@@ -1,0 +1,14 @@
+NUNES AI CRM v1.2 - LeadSphere Production Connector
+===================================================
+[OK] Tailscale-ready base URL setup
+[OK] LeadSphere /external-api/v1/leads endpoint
+[OK] 60-second incremental updated_after sync
+[OK] 5-minute reconciliation sync
+[OK] cursor + offset pagination
+[OK] event_id idempotency
+[OK] existing lead update sync
+[OK] owner mapping / automatic local user mapping
+[OK] source/site/direct-buy/india-export fields
+[OK] quotation sent metadata
+[OK] webhook receiver
+[OK] sync run statistics and errors

@@ -1,0 +1,23 @@
+NUNES AI CRM V2.9.6
+FAST ALL-WINDOWS OFFICE DEPLOYMENT
+
+MAIN COMPUTER
+- Supported deployment: Windows 10/11 and current Windows Server editions using Windows PowerShell 5.1+.
+- x64 / x86 / ARM64 runtime detection is automatic where the required Node runtime is available.
+- Uses installed compatible Node first; otherwise reuses one cached NUNES portable runtime.
+- No npm install.
+- Future upgrades copy only changed CRM program files; live data, backups, logs and .env are preserved.
+- Main server publishes LAN/Tailscale candidate addresses into config/staff-server.json for fast staff setup.
+
+STAFF COMPUTERS
+- Zero-install client: no Node.js, npm, SQLite, database, Administrator rights or development tools.
+- Supports Edge, Chrome, Brave, Firefox, or Windows default browser.
+- Auto-detects the main CRM from previous setup or config/staff-server.json.
+- Only asks for the server address when automatic discovery cannot reach it.
+- Creates a branded desktop shortcut once.
+- Future normal CRM changes come from the main server automatically; staff PCs normally do not need to reinstall.
+
+DATA / TEAM
+- One central database remains on the MAIN CRM computer.
+- Shared Team Reports and Today/Week/Month race remain live for all permitted staff.
+- Each employee keeps their own WhatsApp Web and Gmail browser login on their own computer.

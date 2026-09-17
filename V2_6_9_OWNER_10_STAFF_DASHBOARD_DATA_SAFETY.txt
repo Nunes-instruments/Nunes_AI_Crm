@@ -1,0 +1,15 @@
+NUNES AI CRM V2.6.9
+
+Added only the requested owner/team functions on top of V2.6.8.
+
+- Owner dashboard for 10 staff members.
+- Staff photo/name/designation profiles.
+- Per-staff Today / Week / Month form completion, open enquiries, waiting product/price, orders and won value.
+- Daily 7-day and weekly 8-week completion graphs.
+- Click any staff card for the full staff enquiry/form/order report.
+- Staff device profile shows only that staff member's assigned enquiries and quotations in normal UI.
+- Owner view shows all staff and main reports.
+- Final form save is stored permanently with completion time and 100% completion status.
+- SQLite WAL persistence retained. Automatic database safety backup runs after startup and every 6 hours; up to 30 recent automatic backups are kept.
+- CREATE_STAFF_DESKTOP_SHORTCUT.bat creates an easy desktop launcher for another staff PC without installing the CRM server on that PC.
+- Existing CRM, Gemini, price, margins, offer, Gmail/WhatsApp and sales-assistant functions remain unchanged.

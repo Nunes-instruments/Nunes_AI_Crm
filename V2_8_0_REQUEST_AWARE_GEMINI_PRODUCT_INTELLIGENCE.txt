@@ -1,0 +1,17 @@
+NUNES AI CRM V2.8.0
+
+REQUEST-AWARE PRODUCT INTELLIGENCE
+- Product names that include a requested variant/capability are no longer treated as one generic title.
+- Example: Digital Manometer with Flow -> Base Product: Digital Manometer; Required Capability: Airflow / flow measurement.
+- Added Customer Product Request section with interpretation, selection points, and missing details to ask.
+- Added Digital Manometer / Airflow category-specific technical fields.
+- Search/matching now keeps requested capabilities when ranking products.
+- Generic recommendations are reduced when a candidate does not show the requested capability.
+- Gemini prompt now returns request analysis + specifications + description + features + applications together.
+- Gemini product grounding is enabled by default for better exact-product research.
+- Added current Gemini model fallback chain and clearer authentication/model/rate-limit errors.
+- CONFIGURE_PRODUCT_INTELLIGENCE.bat now saves and live-tests the key.
+- Added TEST_GEMINI_CONNECTION.bat.
+- API key is not bundled in the updated ZIP; run CONFIGURE_PRODUCT_INTELLIGENCE.bat once and paste a Google AI Studio Gemini API key.
+
+NO unrelated CRM workflow changes were made.

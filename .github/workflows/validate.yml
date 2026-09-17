@@ -1,0 +1,37 @@
+name: Validate NUNES AI CRM
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -e
+          node --check server.mjs
+          node --check public/app.js
+          find services providers scripts -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Block runtime data and obvious secrets
+        shell: bash
+        run: |
+          set -e
+          bad=0
+          for f in .env data/nunes-crm.sqlite data/company-crm.json data/company-crm-key.txt data/gmail-oauth-token.json data/google-drive-auth.json; do
+            if [ -e "$f" ]; then echo "Forbidden runtime/secret file committed: $f"; bad=1; fi
+          done
+          if grep -RIE --exclude-dir=.git --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.ico' \
+            '(AIza[0-9A-Za-z_-]{20,}|ls_live_[0-9A-Za-z_-]{15,}|sk-[0-9A-Za-z_-]{20,})' .; then
+            echo 'Possible secret detected in repository.'
+            bad=1
+          fi
+          exit $bad

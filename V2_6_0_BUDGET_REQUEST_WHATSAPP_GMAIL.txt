@@ -1,0 +1,20 @@
+NUNES AI CRM V2.6.0
+
+Added only the requested missing-budget customer messaging workflow.
+
+1. If the customer has not mentioned a budget / target price, the Lead Form shows WhatsApp and Mail buttons in Customer Qualification.
+2. WhatsApp Web is connected from Admin Settings. The button opens the customer chat with the budget request message pre-filled.
+3. Gmail is connected from Admin Settings using a Google OAuth Client JSON file. After authorization, the Mail button sends the budget request directly through Gmail API.
+4. Budget request subject/message is editable in Admin Settings.
+5. Customer name, company, product name and model can be inserted automatically with template fields.
+6. If a budget is already confirmed, the request buttons are not shown.
+7. Existing CRM, Gemini product generation/library reuse, Google price source, quotations and the rest of the workflow are unchanged.
+
+GMAIL SETUP
+- Create/download a Google OAuth Client JSON (Desktop app is recommended for localhost).
+- Enable Gmail API in the same Google Cloud project.
+- Admin Settings > Customer Budget Request > Upload Gmail JSON > Connect Gmail.
+
+WHATSAPP WEB SETUP
+- Admin Settings > Customer Budget Request > Connect WhatsApp Web.
+- Scan the QR if required. Keep using the same Chrome/Edge browser profile so WhatsApp Web stays signed in.

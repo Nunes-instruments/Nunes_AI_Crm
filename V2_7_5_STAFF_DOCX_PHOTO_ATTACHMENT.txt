@@ -1,0 +1,7 @@
+NUNES AI CRM V2.7.5
+
+CHANGE ONLY: staff portrait attachment for the Dashboard.
+
+The 10 portraits from staff.docx are bundled in public/staff-photos and matched against the existing CRM staff name. The application does not create or rename staff accounts. Matching is case/spacing-insensitive, and unmatched staff continue to use their existing CRM photo or initials.
+
+Bundled portraits have priority for the named staff so protected/slow CRM image URLs cannot make the race board fall back to initials. The same image endpoint is used throughout the UI.

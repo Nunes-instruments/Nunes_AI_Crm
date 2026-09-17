@@ -1,0 +1,14 @@
+NUNES AI CRM V2.10.2
+
+1. Staff Dashboard now includes My Date-wise Work & Live History.
+2. Date filters: Yesterday, Today, Tomorrow, This Week, This Month, All.
+3. Planned / Follow-ups shows the staff member's pending follow-ups for the selected period.
+4. Live Work History shows CRM activity saved against that staff member's enquiries for the selected period.
+5. Staff data privacy remains unchanged: staff cannot open another staff member's private enquiry list.
+6. Main server is the single source of application code and data.
+7. After this version is installed once, the web app checks the main server version every 5 seconds. If the server code is updated, already-open Owner/Staff CRM windows reload automatically to the new code.
+8. Owner/Staff browser UI never needs a separate reinstall for normal CRM code changes.
+9. Desktop launcher checks the server and self-updates when it is opened.
+10. UPDATE_REPAIR_SERVER.bat is still the one server-side update/repair action: it backs up the live SQLite database, copies only changed program files, preserves data/.env/backups/logs, and restarts the server.
+11. No destructive schema change is included. Existing leads, customers, quotations, history, work status, reports and staff data remain in the central database.
+12. Server fallback address remains <MAIN-SERVER-ADDRESS> where applicable.

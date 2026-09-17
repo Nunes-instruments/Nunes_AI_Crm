@@ -1,0 +1,9 @@
+NUNES AI CRM V2.7.1
+
+Changes only:
+- Rebuilt quotation PDF into a professional A4 quotation layout with aligned boxes, customer/quotation panels, item grid, totals, commercial terms and signature area.
+- Added Mail Quotation actions in the lead quotation section and Quotations list.
+- Gmail buttons are never client-disabled because of stale page connection state; the server now verifies the real Gmail connection when clicked.
+- Quotation email sends the generated PDF as an attachment and records the send in CRM activity/communications.
+- Price must still be confirmed before a quotation can be emailed.
+- Existing CRM, data, dashboard, Gemini, pricing, WhatsApp, staff and owner functions remain unchanged.

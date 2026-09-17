@@ -1,0 +1,11 @@
+NUNES AI CRM V2.5.8 - COMPLETE GEMINI PRODUCT INFORMATION PIPELINE
+
+- Server-side environment is loaded before product-research provider modules initialize.
+- GEMINI_API_KEY remains server-side only.
+- Startup performs a safe Gemini configuration check and exposes ACTIVE / NOT CONFIGURED / AUTHENTICATION FAILED / RATE LIMITED / API REQUEST FAILED / INVALID RESPONSE / TIMEOUT states without exposing secrets.
+- One Product Information generation object always contains Specifications, Product Description, Key Features and Applications together.
+- Incomplete Gemini output is validated and repaired once automatically; partial output is never saved as COMPLETE.
+- Cache version: V2_GEMINI_COMPLETE. Older/generic cache records are marked stale/invalid and regenerated.
+- Existing manually verified product values and lead overrides are preserved.
+- Product name/model changes invalidate the previous mapping through the existing analysis flow.
+- Existing ProductResearchOrchestrator fallback, IndiaMART research, CRM LIVE, Google price source, one-page form and BAT deployment are preserved.

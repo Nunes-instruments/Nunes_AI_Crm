@@ -1,0 +1,13 @@
+NUNES AI CRM V2.6.4 - ULTRA FAST GEMINI PRODUCT INFORMATION
+
+Speed-only update. Other CRM workflow remains unchanged.
+
+- Product Information uses gemini-3.5-flash-lite for the low-latency path.
+- One non-search structured Gemini request is used for Product Information.
+- Product Information no longer cycles through multiple search/non-search/model combinations after a timeout.
+- A timeout/network error exits immediately instead of cascading into 60+ seconds.
+- A second Gemini repair request is disabled in fast mode.
+- Online price research remains separate and retains Gemini 3.8 Flash + IndiaMART/web grounding.
+- Existing saved-product reuse remains enabled permanently.
+- Lead analysis concurrency increased from 3 to 4.
+- Existing CRM, pricing, India/Export margin, Gmail and WhatsApp behavior is unchanged.

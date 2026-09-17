@@ -1,0 +1,28 @@
+NUNES AI CRM V2.4.0 — SIMPLE PAPER-FORM UPDATE
+
+Lead page changes:
+- Removed visible 12-step workflow, stage navigator, progress, tabs, accordions and Save & Next.
+- Removed card-heavy per-value lead layout.
+- Removed/hid AI reply and objection-response UI for staff.
+- One continuous paper-style form with direct radio/checkbox choices.
+- Missing CRM values stay blank instead of repeated Not Available / Needs Verification labels.
+- Dynamic editable product specifications remain on the same page.
+- Product description, key features and applications remain on the same page.
+- Price fields stay blank when no non-zero price exists.
+- Qualification, contact/follow-up, objection, quotation, order, future requirement and notes are all directly visible.
+- Bottom actions are Save and Save & Close only.
+- Simple selections autosave.
+
+Business logic preserved:
+- Live LeadSphere CRM sync
+- Existing database and external CRM IDs
+- Duplicate handling
+- Product and price matching
+- Lead scoring
+- Customer history
+- Quotations and PDFs
+- Follow-ups and activity timeline
+- Reports/pipeline data
+- LIVE/HISTORICAL classification
+- Windows BAT deployment
+- All 12 sales principles continue to update internally without being shown as a workflow.

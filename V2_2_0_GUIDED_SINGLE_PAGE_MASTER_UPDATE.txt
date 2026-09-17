@@ -1,0 +1,48 @@
+NUNES AI CRM V2.2.0
+GUIDED SINGLE-PAGE SALES FORM + COMPLETE 12-STEP SALES SYSTEM
+
+Implemented without rebuilding or resetting the CRM.
+
+STAFF EXPERIENCE
+- Sidebar: Today, My Leads, Quotations (Admin Settings remains admin-only).
+- My Leads: server-paginated main work list with lead-level quick filters and required sales columns.
+- Lead click: one guided sales form; no 12 separate routes.
+- Large readable controls, same-page stage navigation, auto-save, Save, Save & Next, Skip with reason, resume from incomplete step.
+
+12 WORKING STEPS
+1 Qualify Lead
+2 Follow Up Promptly
+3 Understand Customer Needs
+4 Present Clear Value
+5 Offer Solutions
+6 Provide Detailed Information
+7 Create Genuine Urgency
+8 Address Objections
+9 Professional Proposal / Quotation
+10 Ask for Order
+11 Follow Up
+12 Nurture Relationship
+
+INTELLIGENCE
+- Dynamic buyer requirement extraction and product-specific discovery questions.
+- Dynamic specification structure.
+- Product information order: Specifications -> Description -> Key Features -> Applications.
+- Internal product matching + confidence + alternatives.
+- Price history / source / reliability; never displays a zero price as a valid price.
+- Marketing price verification records user/date/time.
+- AI preliminary and marketing verified score remain separate.
+
+DATA SAFETY
+- Safe schema migrations only.
+- Existing database is not included/replaced in this update ZIP.
+- Existing external CRM IDs and LeadSphere live sync remain intact.
+- Duplicate handling remains non-destructive.
+
+TESTED
+- Node syntax checks passed.
+- Fresh-start API test passed.
+- V2.1 -> V2.2 schema migration test passed.
+- UV Meter acceptance workflow passed.
+- All 12 stages reached terminal completion in end-to-end API test.
+- Quotation PDF endpoint returned a valid PDF header.
+- Skip without reason is rejected; skip with reason is preserved.

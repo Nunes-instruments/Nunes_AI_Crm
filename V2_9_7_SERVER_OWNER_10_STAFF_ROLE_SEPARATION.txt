@@ -1,0 +1,29 @@
+NUNES AI CRM V2.9.7
+SERVER + OWNER OVERALL + 10 STAFF ROLE SEPARATION
+
+OFFICE STRUCTURE
+- MAIN SERVER PC: hosts the one live database, integrations, backups and server process. Its desktop icon opens Server Console only.
+- OWNER PC: run SETUP_OWNER_PC.bat once. Owner sees overall dashboard, all 10 staff, all leads, all quotations, assignment, overall reports and owner settings.
+- 10 STAFF PCs: run 2_SETUP_STAFF_PC.bat once. Each PC is locked to the selected staff profile and sees only that staff member's assigned enquiries, quotations, follow-ups and customers.
+- TEAM RACE: Today / This Week / This Month race remains visible to staff and owner and refreshes from the central server.
+- WHATSAPP + GMAIL: remain personal to each Windows/browser login; they are not shared.
+
+SECURITY / ACCESS
+- Removed URL-based staff/owner profile switching.
+- Owner PC receives an owner device token using the one-time server setup code.
+- Staff PC receives its own device token during staff setup.
+- Overall dashboard/reports/settings/pipeline are owner-only.
+- Staff lead, customer, quotation, notification and follow-up views are filtered to the staff member.
+
+SETUP
+1. MAIN SERVER: 1_SETUP_MAIN_CRM_SERVER.bat
+2. MAIN SERVER: SETUP_FIREWALL.bat once as Administrator if LAN staff need access.
+3. MAIN SERVER: SHOW_OWNER_SETUP_CODE.bat when preparing the owner PC.
+4. OWNER PC: SETUP_OWNER_PC.bat once.
+5. EACH STAFF PC: 2_SETUP_STAFF_PC.bat once and choose the correct employee.
+6. Daily use: everyone opens only their desktop icon.
+
+FAST SETUP
+- No npm install.
+- No Node/database on owner or staff PCs.
+- Main server updates only changed program files and preserves the live database.

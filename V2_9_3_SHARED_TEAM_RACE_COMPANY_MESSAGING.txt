@@ -1,0 +1,27 @@
+NUNES AI CRM V2.9.3 - SHARED TEAM RACE + COMPANY MESSAGING
+
+1. ONE CENTRAL DATABASE
+- Main CRM computer remains the only SQLite server.
+- All staff desktop apps read/write the same server data.
+- A save by one staff member is immediately stored centrally.
+
+2. LIVE TEAM RACE FOR EVERY STAFF PC
+- Every staff dashboard now shows Today / This Week / This Month team race.
+- Dashboard checks the central data revision every 8 seconds.
+- When another staff member saves/completes work, the race refreshes automatically.
+- Staff still see only their own detailed customer enquiries. Detailed owner reports remain owner-only.
+
+3. SHARED COMPANY GMAIL
+- Gmail OAuth token remains on the main CRM server.
+- Connect Gmail once as owner.
+- All staff email actions use the same company Gmail server connection.
+
+4. SHARED COMPANY WHATSAPP
+- Added server-side WhatsApp Business Cloud API connection.
+- Configure it once in Admin Settings on the main CRM computer.
+- All staff WhatsApp actions then send through the same company WhatsApp connection without separate staff-PC logins.
+- Existing WhatsApp Web remains as a fallback, but a browser WhatsApp Web login is per PC and cannot be truly shared between separate browsers.
+
+5. DATA SAFETY
+- No replacement nunes-crm.sqlite is shipped.
+- Existing leads, staff, reports, Gmail tokens, Gemini settings, quotations and history are preserved by the existing installer.

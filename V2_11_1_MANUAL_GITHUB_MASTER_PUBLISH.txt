@@ -1,0 +1,29 @@
+NUNES AI CRM V2.11.1
+MANUAL GITHUB MASTER PUBLISH + DATA-SAFE AUTO UPDATE
+
+NEW
+1. GITHUB_PUBLISH_MASTER.bat
+   - Option 1: push current safe source to GitHub main using Git for Windows, then immediately force-sync/restart the installed MAIN SERVER from GitHub.
+   - Option 2: create a sanitized Desktop folder for manual browser upload.
+2. The publish process excludes live .env, SQLite data, OAuth/device tokens,
+   backups, logs, runtime state and staff photos.
+3. The current installed server code can be the continuing master working copy.
+   Future bug fixes/features can modify the same files, increment VERSION.txt,
+   then run GITHUB_PUBLISH_MASTER.bat.
+4. Main server keeps checking GitHub automatically. Owner and Staff web apps
+   automatically reload after the server version changes.
+5. Existing customer/staff/quotation/history data remains on the main server and
+   is not replaced by source-code updates.
+
+FIRST USE
+- Run UPDATE_REPAIR_SERVER.bat on the MAIN SERVER once to install V2.11.1.
+- Then run GITHUB_PUBLISH_MASTER.bat.
+- Choose 1 if Git for Windows is installed; GitHub may open browser sign-in.
+- If Git is not installed, choose 2 and upload the contents of the created
+  Desktop folder to Nunes-instruments/Nunes_AI_Crm main.
+
+FUTURE RELEASE
+- Edit the SAME source files.
+- Change VERSION.txt to the next version, for example 2.11.2.
+- Run GITHUB_PUBLISH_MASTER.bat.
+- The publish BAT immediately syncs/restarts the MAIN SERVER from GitHub; Owner and Staff follow the main server automatically.

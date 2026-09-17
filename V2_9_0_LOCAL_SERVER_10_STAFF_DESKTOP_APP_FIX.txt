@@ -1,0 +1,38 @@
+NUNES AI CRM V2.9.0 - LOCAL SERVER + 10 STAFF DESKTOP APP FIX
+
+WHY THE DISK I/O ERROR HAPPENED
+- The CRM was being started from a NAS/SMB path (file://nunes_nas/...).
+- SQLite WAL uses shared-memory/locking files that are not safe/reliable on network file shares.
+- The failure occurred while PRAGMA journal_mode=WAL was being enabled.
+
+WHAT V2.9.0 CHANGES
+1. INSTALL_CRM.bat now copies the MAIN CRM server application to the local Windows disk:
+   %LOCALAPPDATA%\NunesAI\CRMServer\App
+2. The live SQLite database stays only on the MAIN CRM server computer.
+3. Existing local data/.env are preserved when installing a newer CRM ZIP.
+4. WAL remains enabled on the local disk; server.mjs also has a safe DELETE-journal fallback instead of crashing.
+5. A real desktop shortcut named "NUNES AI CRM" is created on the MAIN server PC.
+6. The CRM server starts automatically in the background when that Windows user signs in.
+7. SETUP_STAFF_PC.bat is the one-time installer for each of the 10 staff computers.
+8. Staff PCs do not install Node.js, do not open SQLite and do not run a second CRM server.
+9. Each staff PC receives its own "NUNES AI CRM - <Staff Name>" desktop app shortcut.
+10. After first setup, staff only double-click the desktop app. It checks the main server and opens the assigned profile.
+11. Edge/Chrome app mode is used when available, so the CRM opens like a desktop application instead of a normal browser tab.
+12. SHOW_OTHER_DEVICE_LINKS.bat now shows the computer-name, LAN and Tailscale server addresses for staff setup.
+
+ONE-TIME DEPLOYMENT
+MAIN SERVER PC:
+- Extract this ZIP anywhere (NAS is allowed as the source).
+- Run INSTALL_CRM.bat once.
+- Run SETUP_FIREWALL.bat once as Administrator.
+- Run SHOW_OTHER_DEVICE_LINKS.bat and note one reachable address.
+
+EACH STAFF PC:
+- Run SETUP_STAFF_PC.bat once from the ZIP/shared folder.
+- Enter the MAIN server address.
+- Select that staff member.
+- From then on use the desktop shortcut only.
+
+IMPORTANT
+- Do not run START_CRM.bat separately on 10 staff computers.
+- There must be one MAIN CRM server/database and 10 desktop clients.

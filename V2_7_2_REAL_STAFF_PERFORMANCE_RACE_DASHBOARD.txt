@@ -1,0 +1,30 @@
+NUNES AI CRM V2.7.2 — REAL STAFF PERFORMANCE RACE DASHBOARD
+
+CHANGES ONLY IN DASHBOARD / STAFF REPORTING
+
+1. Removed automatic creation of Staff 01 ... Staff 10 placeholder profiles.
+2. Existing unused default placeholder profiles are automatically deactivated on startup.
+   - No data is deleted.
+   - Any placeholder profile that already owns a lead is kept active so old ownership/history is never lost.
+3. The owner navigation/title now simply says Dashboard.
+4. Dashboard uses the real CRM staff names and uploaded staff photos.
+5. Added animated Team Performance Race for:
+   - Today
+   - This Week
+   - This Month
+   Ranking is based on completed forms; orders and completion percentage break ties.
+6. Race rows show each staff photo/name plus completed, received, completion %, orders, waiting, pending and not-purchased counts.
+7. Added dashboard totals for Completed, Waiting, Pending, Not Purchased, Orders Won, Open Clients, Available Staff and Needs Assignment.
+8. Added Daily, Weekly and Monthly team performance graphs.
+9. Staff cards now show Completed / Waiting / Pending / Not Purchase for the selected period.
+10. Clicking a staff member opens the full staff report with:
+    - Today / Week / Month completion
+    - Waiting / Pending / Not Purchased
+    - Orders and won value
+    - Daily / Weekly / Monthly trend
+    - Every enquiry and its waiting reason / order status
+11. Existing automatic backups, old-data safety, quotation, Gmail, Gemini, pricing, WhatsApp, limited offers and sales workflow are unchanged.
+
+DATA SAFETY
+- This release does not ship a replacement nunes-crm.sqlite database.
+- Existing customer/lead/order/history data remains in the current installation data folder.

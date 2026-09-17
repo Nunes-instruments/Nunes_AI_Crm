@@ -1,0 +1,15 @@
+NUNES AI CRM V2.5.3
+===================
+- Existing project updated in-place; database and LeadSphere CRM integration preserved.
+- Default company Google Sheet configured in config/crm-config.json.
+- CRM starts immediately from the local price index; Google refresh runs in background.
+- Public/shared Google Sheets are read server-side without browser CORS or OAuth.
+- Private Sheets can use Admin-only Google OAuth when configured.
+- Initial Google requests allow up to 60 seconds and return useful timeout/network/permission errors instead of raw AbortController messages.
+- Connection states: CONNECTING, CONNECTED, REFRESHING, AUTH REQUIRED, ERROR.
+- Failed refresh preserves the last successful local price index.
+- Multi-sheet XLSX import auto-detects common Product/Model/Brand/Price/Supplier/Date/GST/Stock headings.
+- Product master search uses in-memory indexes for model, brand+model, product code, exact name and tokens instead of scanning every row on each lead.
+- Backend health now includes price sheet/index status.
+- Global notification bell, red dot and global + button removed. Header now keeps Search + CRM LIVE.
+- Product Intelligence, one-page lead form, existing leads and Windows BAT files preserved.

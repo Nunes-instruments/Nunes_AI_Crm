@@ -1,0 +1,11 @@
+NUNES AI CRM V2.7.0 — FINAL BUTTON ENABLEMENT / BUG CHECK
+
+Changes are limited to action availability and button reliability.
+- Removed permanent disabled state from visible action buttons.
+- WhatsApp / Mail / Limited-Time Offer / Objection buttons stay clickable and explain the exact missing prerequisite instead of appearing disabled.
+- Lead and Customer Previous / Next buttons stay clickable and safely tell the user when there is no previous/next page.
+- Sales-step Back stays clickable and safely handles the first step.
+- Price-source connection controls stay clickable; an already-running connection check gives a safe status message instead of a dead button.
+- Replaced two non-working Reports “View All” buttons with working Open Leads links.
+- Removed runtime button disabling too. Buttons remain visibly enabled during requests; an internal busy guard prevents accidental duplicate actions and shows a status message on repeated clicks.
+- No database reset, CRM connection change, Gemini change, pricing change, staff dashboard change, or existing lead data change.

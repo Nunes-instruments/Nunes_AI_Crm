@@ -1,0 +1,12 @@
+NUNES AI CRM V2.6.7 — SIX SALES ASSISTANT ADDITIONS
+
+Added only the requested sales-assistance functions:
+1. AI Questions to Ask Customer — only unanswered information is shown.
+2. Why This Product Fits This Customer + Suggested Sales Pitch.
+3. AI Solution Recommendation with confidence-gated alternatives.
+4. Improved Limited-Time Offer with AI suggested discount/reason, safe margin-after-discount display, 10-minute editable validity, and Draft → Sent → Active → terminal status history.
+5. AI Objection Assistant with editable suggested response plus Copy / WhatsApp / Mail.
+6. Close This Sale section with Ask for Order / Send PI / Confirm Order / Payment Follow-Up and recommended next action.
+
+Important: these new guidance sections reuse the CRM's existing product intelligence and lead data. They do NOT add another Gemini call, so they do not slow product generation.
+Existing Company CRM, product generation, pricing, WhatsApp/Gmail, quotations and prior functions remain in place.

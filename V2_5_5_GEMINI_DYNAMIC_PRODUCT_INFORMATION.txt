@@ -1,0 +1,13 @@
+NUNES AI CRM V2.5.5 — GEMINI DYNAMIC PRODUCT INFORMATION
+
+- Existing project updated only; no database reset and no Drive/price changes.
+- Every new unique lead product is sent to server-side Gemini when configured.
+- Google Search grounding is attempted first where supported.
+- Product category is determined before specifications are generated.
+- Exact model products use model-specific fields/data where supported.
+- Generic product names receive useful category-specific profiles without invented exact numeric values.
+- Hard-coded generic Product Information fallback text has been removed.
+- Product Information display is now: Specifications bullets, Description bullets, Key Features bullets, Applications bullets.
+- While generation is running the UI shows: Generating product details...
+- Gemini API status is shown in Admin Settings without exposing the key.
+- Existing one-page lead form, CRM LIVE, Google Drive price source and BAT deployment are preserved.

@@ -1,0 +1,31 @@
+NUNES AI CRM V2.1.0
+
+The 12 salesperson steps are implemented as working website stages:
+1. Qualify Leads
+2. Follow Up Promptly
+3. Understand Customer Needs
+4. Present Clear Value
+5. Offer Solutions
+6. Provide Detailed Information
+7. Create Urgency (verified only; supports No Verified Urgency)
+8. Address Objections (supports No Current Objection)
+9. Use Professional Proposals / Quotations
+10. Ask for the Order
+11. Follow Up
+12. Nurture Relationships
+
+Key upgrades:
+- 12-step progress navigator visible on each Lead Intelligence page
+- Structured forms/actions for every step
+- AI preliminary score + separate marketing verified score
+- Dynamic scoring and Hot/Warm/Developing/Low/Cold thresholds
+- Product-specific discovery questions
+- Product Intelligence and Price Intelligence verification states
+- Quotation builder + PDF + price verification block
+- Follow-up reminders/outcomes
+- Win/loss/order capture
+- Live vs Historical lead separation
+- Server-side lead pagination and pipeline load-more
+- Background analysis/backfill without blocking new LIVE leads
+- Existing database migrated in place; external CRM IDs preserved
+- LeadSphere default connection and Windows BAT startup preserved

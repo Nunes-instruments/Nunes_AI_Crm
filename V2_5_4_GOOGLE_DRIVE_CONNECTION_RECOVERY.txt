@@ -1,0 +1,11 @@
+NUNES AI CRM V2.5.4
+
+- Existing CRM updated in-place.
+- Google 404/HTML/JavaScript responses are converted to safe, useful Admin messages.
+- Public Google Sheet reader now tries XLSX export and GViz CSV fallback.
+- Authenticated Google Sheets use the Sheets API with chunked reads for large spreadsheets.
+- Google Drive file links support resource keys.
+- Last successful local price index is preserved on all sync failures.
+- Admin Price Data Source UI redesigned for clarity.
+- Optional Browse Google Drive picker available when server Google OAuth is configured.
+- CRM data, LeadSphere LIVE connection, Product Intelligence and existing BAT deployment preserved.
