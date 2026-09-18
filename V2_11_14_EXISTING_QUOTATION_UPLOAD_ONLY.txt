@@ -1,0 +1,10 @@
+NUNES AI CRM V2.11.14
+
+- Removed My Quotations from the staff sidebar.
+- Replaced quotation creation/editing in the staff lead form with Upload Existing Quotation.
+- Supports PDF, JPG/PNG/WebP, Word and Excel quotation files up to 8 MB.
+- Uploaded files are saved only under MAIN SERVER data/uploads/quotations and are excluded from GitHub.
+- Quotation number, value, status and notes can be saved with the uploaded file.
+- 12-step Professional Proposal stage now requires an uploaded existing quotation instead of generating one.
+- Existing old generated quotation records are preserved for compatibility; no old data is deleted.
+- LAN 192.168.29.194 and Tailscale 100.97.196.17 auto-fallback remains included.

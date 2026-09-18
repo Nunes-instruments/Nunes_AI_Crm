@@ -367,3 +367,5 @@ button[aria-busy="true"]{pointer-events:auto}
 @media(max-width:760px){.pending-work-kpis{grid-template-columns:1fr}.followup-detail-head{display:block}.followup-detail-head .pill{margin-top:8px}}
 
 .info-grid.compact{padding:0;gap:10px}.followup-filled-box .info-grid.compact .info-item{background:#fff}.followup-detail-head p+p{margin-top:4px}.filter-bar.single{margin-bottom:16px}.table-wrap .data-table td,.table-wrap .data-table th{white-space:normal}.table-wrap .data-table td:nth-child(3),.table-wrap .data-table th:nth-child(3){min-width:180px}.table-wrap .data-table td:nth-child(2),.table-wrap .data-table th:nth-child(2){min-width:170px}
+
+.quote-upload-note{font-size:12px;color:var(--muted)}.simple-inline-action small{display:block;margin-top:7px;color:var(--muted);font-size:11px}.quote-customer+form input[type=file]{padding:9px;background:#fff}

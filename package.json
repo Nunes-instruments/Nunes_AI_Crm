@@ -1,9 +1,9 @@
 {
   "name": "nunes-ai-sales-intelligence-crm",
-  "version": "2.11.13",
+  "version": "2.11.14",
   "private": true,
   "type": "module",
-  "description": "Nunes AI CRM V2.11.13: completed/pending/search fixes plus current MAIN server LAN/Tailscale auto-fallback for Owner and Staff launchers.",
+  "description": "Nunes AI CRM V2.11.14: upload existing quotation files per lead; CRM quotation creation removed from staff workflow; My Quotations removed from staff sidebar.",
   "engines": {
     "node": ">=22.5.0"
   },

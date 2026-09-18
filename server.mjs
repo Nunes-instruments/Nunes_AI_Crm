@@ -42,9 +42,9 @@ const SCORE_FACTORS_V2 = [
 const SCORE_CONFIG_VERSION = '2';
 const ANALYSIS_VERSION = 8;
 const PRODUCT_INTELLIGENCE_VERSION = 'V3_REQUEST_AWARE';
-const DEPLOYMENT_VERSION = 'V2_11_13_LAN_TAILSCALE_AUTO_FALLBACK';
-const APP_VERSION = '2.11.13';
-const CLIENT_LAUNCHER_VERSION = '2.11.13';
+const DEPLOYMENT_VERSION = 'V2_11_14_EXISTING_QUOTATION_UPLOAD_ONLY';
+const APP_VERSION = '2.11.14';
+const CLIENT_LAUNCHER_VERSION = '2.11.14';
 const GITHUB_UPDATE_REPO = String(process.env.CRM_UPDATE_REPO||'Nunes-instruments/Nunes_AI_Crm').trim();
 const GITHUB_UPDATE_BRANCH = String(process.env.CRM_UPDATE_BRANCH||'main').trim()||'main';
 const GITHUB_AUTO_UPDATE_ENABLED = String(process.env.CRM_GITHUB_AUTO_UPDATE||'true').toLowerCase()!=='false';
@@ -275,6 +275,11 @@ function initSchema() {
     subtotal REAL, gst REAL, total REAL, validity TEXT, payment_terms TEXT, delivery_terms TEXT, warranty TEXT, created_at TEXT NOT NULL,
     FOREIGN KEY(lead_id) REFERENCES leads(id), FOREIGN KEY(customer_id) REFERENCES customers(id)
   );
+  CREATE TABLE IF NOT EXISTS quotation_uploads (
+    id INTEGER PRIMARY KEY, lead_id INTEGER NOT NULL, file_name TEXT NOT NULL, file_path TEXT NOT NULL, mime_type TEXT, size_bytes INTEGER,
+    quotation_no TEXT, status TEXT NOT NULL DEFAULT 'UPLOADED', total REAL, notes TEXT, uploaded_by INTEGER, created_at TEXT NOT NULL,
+    FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE CASCADE
+  );
   CREATE TABLE IF NOT EXISTS quotation_items (
     id INTEGER PRIMARY KEY, quotation_id INTEGER NOT NULL, product_name TEXT NOT NULL, model TEXT, specification TEXT, quantity REAL, unit TEXT,
     unit_price REAL, gst_percent REAL, line_total REAL, FOREIGN KEY(quotation_id) REFERENCES quotations(id) ON DELETE CASCADE
@@ -389,6 +394,7 @@ function initSchema() {
   CREATE INDEX IF NOT EXISTS idx_product_prices_product_id ON product_prices(product_id, id DESC);
   CREATE INDEX IF NOT EXISTS idx_followups_due ON followups(due_at, status);
   CREATE INDEX IF NOT EXISTS idx_followups_lead_due ON followups(lead_id, due_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_quotation_uploads_lead ON quotation_uploads(lead_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_activities_lead_created ON activities(lead_id, created_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_activities_customer_created ON activities(customer_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_objections_lead_created ON objections(lead_id, created_at DESC);
@@ -1343,6 +1349,38 @@ function nextBestAction(lead, products=[], quotations=[], objections=[]) {
   return { icon:'⏰', title:'FOLLOW UP', reason:'The opportunity is active and needs a planned next contact.', question:'Confirm feedback, decision status and next follow-up date.' };
 }
 
+function safeUploadFilename(name='quotation.pdf'){
+  const raw=String(name||'quotation.pdf').replace(/[\\/:*?"<>|\x00-\x1F]/g,'_').trim();
+  const base=(raw||'quotation.pdf').slice(-160);
+  return base.replace(/^\.+/,'')||'quotation.pdf';
+}
+function quotationUploadPublicRow(row){
+  if(!row)return null;
+  return {...row,file_url:`/api/quotation-uploads/${Number(row.id)}/file`};
+}
+function quotationUploadsForLead(leadId){
+  return db.prepare('SELECT * FROM quotation_uploads WHERE lead_id=? ORDER BY created_at DESC,id DESC').all(leadId).map(quotationUploadPublicRow);
+}
+function storeQuotationUpload(leadId,b,viewer){
+  const lead=db.prepare('SELECT id,assigned_to FROM leads WHERE id=?').get(leadId);if(!lead)throw new Error('Lead not found');
+  if(!viewerCanAccessLead(viewer,leadId))throw new Error('This enquiry belongs to another staff member.');
+  const fileName=safeUploadFilename(b.file_name||'quotation.pdf'),mime=String(b.mime_type||'application/octet-stream').toLowerCase();
+  const allowedExt=new Set(['.pdf','.jpg','.jpeg','.png','.webp','.doc','.docx','.xls','.xlsx']);
+  const ext=path.extname(fileName).toLowerCase();if(!allowedExt.has(ext))throw new Error('Upload quotation as PDF, image, Word or Excel file.');
+  const raw=String(b.data_base64||'').replace(/^data:[^;]+;base64,/,'');if(!raw)throw new Error('Choose a quotation file to upload.');
+  let buffer;try{buffer=Buffer.from(raw,'base64')}catch{throw new Error('Quotation file could not be read.');}
+  if(!buffer.length)throw new Error('Quotation file is empty.');if(buffer.length>8*1024*1024)throw new Error('Quotation file is too large. Maximum size is 8 MB.');
+  const folder=path.join(DATA_DIR,'uploads','quotations',String(leadId));fs.mkdirSync(folder,{recursive:true});
+  const storedName=`${Date.now()}_${randomBytes(4).toString('hex')}_${fileName}`;const fullPath=path.join(folder,storedName);fs.writeFileSync(fullPath,buffer);
+  const status=String(b.status||'UPLOADED').toUpperCase();const allowedStatus=new Set(['UPLOADED','READY','SENT','NEGOTIATION','ACCEPTED','REJECTED']);
+  const finalStatus=allowedStatus.has(status)?status:'UPLOADED';const total=Number(b.total);const totalValue=Number.isFinite(total)&&total>0?total:null;
+  const quoteNo=String(b.quotation_no||path.basename(fileName,ext)||'').trim().slice(0,100)||null;const notes=String(b.notes||'').trim().slice(0,2000)||null;
+  const id=db.prepare('INSERT INTO quotation_uploads(lead_id,file_name,file_path,mime_type,size_bytes,quotation_no,status,total,notes,uploaded_by,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(leadId,fileName,fullPath,mime,buffer.length,quoteNo,finalStatus,totalValue,notes,Number(viewer?.id)||null,nowIso()).lastInsertRowid;
+  db.prepare('UPDATE product_requirements SET quotation_required=1 WHERE lead_id=?').run(leadId);
+  addActivity(leadId,'QUOTATION_UPLOAD','Existing quotation uploaded',`${quoteNo||fileName} • ${finalStatus}`);
+  try{completePlaybookStage(leadId,9,{status:'COMPLETED',notes:`Existing quotation uploaded: ${quoteNo||fileName}`,data:{quotation_upload_id:Number(id)},activity:false});}catch{}
+  bumpDataRevision();return quotationUploadPublicRow(db.prepare('SELECT * FROM quotation_uploads WHERE id=?').get(id));
+}
 function hydrateLead(id) {
   const lead = db.prepare(`SELECT l.*, u.name AS owner_name FROM leads l LEFT JOIN users u ON u.id=l.assigned_to WHERE l.id=?`).get(id);
   if (!lead) return null;
@@ -1361,6 +1399,7 @@ function hydrateLead(id) {
   const followups = db.prepare('SELECT * FROM followups WHERE lead_id=? ORDER BY due_at DESC,id DESC').all(id);
   const objections = db.prepare('SELECT * FROM objections WHERE lead_id=? ORDER BY created_at DESC,id DESC').all(id);
   const quotations = db.prepare('SELECT * FROM quotations WHERE lead_id=? ORDER BY created_at DESC,id DESC').all(id).map(q=>({...q,items:db.prepare('SELECT * FROM quotation_items WHERE quotation_id=? ORDER BY id').all(q.id)}));
+  const quotation_uploads = quotationUploadsForLead(id);
   const verifications=db.prepare('SELECT v.*,u.name AS user_name FROM lead_verifications v LEFT JOIN users u ON u.id=v.user_id WHERE v.lead_id=? ORDER BY v.verified_at DESC,id DESC LIMIT 50').all(id);
   const nurture=db.prepare('SELECT * FROM customer_nurture WHERE customer_id=?').get(lead.customer_id)||null;
   const users=db.prepare('SELECT id,name,role FROM users WHERE active=1 ORDER BY name').all();
@@ -1371,7 +1410,7 @@ function hydrateLead(id) {
   const price_intelligence=priceIntelligenceForLead(id);
   const next = nextBestAction(lead,products,quotations,objections);
   const limited_offer=latestLimitedOfferForLead(id);
-  return { lead:{...lead,next_action:next.title}, customer, requirements:reqs, products, product_intelligence, price_intelligence, limited_offer, customer_messaging:customerMessagingStatus(), activities, communications, followups, objections, quotations, verifications, nurture, users, playbook:playbookProgress.rows, playbook_progress:{completed:playbookProgress.completed,skipped:playbookProgress.skipped||0,terminal:playbookProgress.terminal??playbookProgress.completed,total:playbookProgress.total,percent:playbookProgress.percent,current_stage_no:playbookProgress.current_stage_no,current_stage_name:playbookProgress.current_stage_name}, score: score ? {...score,factors:safeJson(score.factor_json,{})}:null, next_best_action:next, discovery_questions:product_intelligence.flatMap(x=>x.discovery_questions||[]) };
+  return { lead:{...lead,next_action:next.title}, customer, requirements:reqs, products, product_intelligence, price_intelligence, limited_offer, customer_messaging:customerMessagingStatus(), activities, communications, followups, objections, quotations, quotation_uploads, verifications, nurture, users, playbook:playbookProgress.rows, playbook_progress:{completed:playbookProgress.completed,skipped:playbookProgress.skipped||0,terminal:playbookProgress.terminal??playbookProgress.completed,total:playbookProgress.total,percent:playbookProgress.percent,current_stage_no:playbookProgress.current_stage_no,current_stage_name:playbookProgress.current_stage_name}, score: score ? {...score,factors:safeJson(score.factor_json,{})}:null, next_best_action:next, discovery_questions:product_intelligence.flatMap(x=>x.discovery_questions||[]) };
 }
 
 const LEAD_LIST_FROM = `FROM leads l
@@ -2446,7 +2485,7 @@ function send(res,status,body,headers={}){
   res.end(payload);
 }
 function sendJson(res,status,obj){send(res,status,JSON.stringify(obj),{'Content-Type':'application/json; charset=utf-8'});}
-async function readBody(req){return new Promise((resolve,reject)=>{let s='';req.on('data',d=>{s+=d;if(s.length>2_000_000){reject(new Error('Request too large'));req.destroy();}});req.on('end',()=>{try{resolve(s?JSON.parse(s):{});}catch{reject(new Error('Invalid JSON'));}});req.on('error',reject);});}
+async function readBody(req,maxBytes=2_000_000){return new Promise((resolve,reject)=>{let s='';req.on('data',d=>{s+=d;if(s.length>maxBytes){reject(new Error('Request too large'));req.destroy();}});req.on('end',()=>{try{resolve(s?JSON.parse(s):{});}catch{reject(new Error('Invalid JSON'));}});req.on('error',reject);});}
 
 
 function recordVerification(leadId,fieldName,previousValue,newValue,reason=''){
@@ -2946,6 +2985,17 @@ const profile=url.pathname.match(/^\/api\/leads\/(\d+)\/profile$/);if(profile&&r
       const id=Number(priceRoute[1]),b=await readBody(req);if(!hydrateLead(id))throw new Error('Lead not found');updateOnlinePricePreferencesForLead(id,b);const saved=saveVerifiedPriceForLead(id,{...b,price_verified:'YES',verified_selling_price:b.verified_selling_price??b.selling_price??b.suggested_selling_price},true);if(!saved)throw new Error('Enter a verified non-zero selling price.');calculateLeadScore(id);bumpDataRevision();return sendJson(res,200,{ok:true,data:hydrateLead(id)});
     }
 
+    const quotationUploadRoute=url.pathname.match(/^\/api\/leads\/(\d+)\/quotation-upload$/);if(quotationUploadRoute&&req.method==='POST'){
+      const viewer=viewerFromRequest(req),id=Number(quotationUploadRoute[1]);if(!viewerCanAccessLead(viewer,id))return sendJson(res,403,{ok:false,error:'This enquiry belongs to another staff member.'});
+      const b=await readBody(req,12_000_000);try{return sendJson(res,201,{ok:true,data:storeQuotationUpload(id,b,viewer)});}catch(e){return sendJson(res,400,{ok:false,error:e.message});}
+    }
+    const quotationUploadFile=url.pathname.match(/^\/api\/quotation-uploads\/(\d+)\/file$/);if(quotationUploadFile&&req.method==='GET'){
+      const viewer=viewerFromRequest(req),row=db.prepare('SELECT * FROM quotation_uploads WHERE id=?').get(Number(quotationUploadFile[1]));if(!row)return sendJson(res,404,{ok:false,error:'Uploaded quotation not found'});if(!viewerCanAccessLead(viewer,row.lead_id))return sendJson(res,403,{ok:false,error:'This quotation belongs to another staff member.'});if(!fs.existsSync(row.file_path))return sendJson(res,404,{ok:false,error:'Quotation file is missing from the server storage.'});
+      const ascii=safeUploadFilename(row.file_name).replace(/[^\x20-\x7E]/g,'_').replace(/"/g,'');res.writeHead(200,{'Content-Type':row.mime_type||'application/octet-stream','Content-Disposition':`inline; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(row.file_name)}`,'Cache-Control':'private, no-store'});return fs.createReadStream(row.file_path).pipe(res);
+    }
+    const quotationUploadUpdate=url.pathname.match(/^\/api\/quotation-uploads\/(\d+)$/);if(quotationUploadUpdate&&req.method==='PATCH'){
+      const viewer=viewerFromRequest(req),row=db.prepare('SELECT * FROM quotation_uploads WHERE id=?').get(Number(quotationUploadUpdate[1]));if(!row)return sendJson(res,404,{ok:false,error:'Uploaded quotation not found'});if(!viewerCanAccessLead(viewer,row.lead_id))return sendJson(res,403,{ok:false,error:'This quotation belongs to another staff member.'});const b=await readBody(req);const status=String(b.status||row.status||'UPLOADED').toUpperCase();if(!['UPLOADED','READY','SENT','NEGOTIATION','ACCEPTED','REJECTED'].includes(status))return sendJson(res,400,{ok:false,error:'Invalid quotation status.'});const total=Object.hasOwn(b,'total')?(Number(b.total)>0?Number(b.total):null):row.total;db.prepare('UPDATE quotation_uploads SET quotation_no=?,status=?,total=?,notes=? WHERE id=?').run(String(b.quotation_no??row.quotation_no??'').trim()||null,status,total,String(b.notes??row.notes??'').trim()||null,row.id);bumpDataRevision();return sendJson(res,200,{ok:true,data:quotationUploadPublicRow(db.prepare('SELECT * FROM quotation_uploads WHERE id=?').get(row.id))});
+    }
     const qm=url.pathname.match(/^\/api\/leads\/(\d+)\/quotation$/);if(qm&&req.method==='POST'){const b=await readBody(req);return sendJson(res,201,{ok:true,data:createQuotation(Number(qm[1]),b)});}
     const quotationAccessRoute=url.pathname.match(/^\/api\/quotations\/(\d+)(?:\/|$)/);if(quotationAccessRoute){const viewer=viewerFromRequest(req),qid=Number(quotationAccessRoute[1]);if(!viewerIsOwner(viewer)){const ok=db.prepare('SELECT 1 FROM quotations q JOIN leads l ON l.id=q.lead_id WHERE q.id=? AND l.assigned_to=?').get(qid,viewer.id);if(!ok)return sendJson(res,403,{ok:false,error:'This quotation belongs to another staff member.'});}}
     const quoteGet=url.pathname.match(/^\/api\/quotations\/(\d+)$/);if(quoteGet&&req.method==='GET'){const q=db.prepare('SELECT * FROM quotations WHERE id=?').get(Number(quoteGet[1]));if(!q)return sendJson(res,404,{ok:false,error:'Quotation not found'});return sendJson(res,200,{ok:true,data:{quotation:q,items:db.prepare('SELECT * FROM quotation_items WHERE quotation_id=? ORDER BY id').all(q.id)}});}
@@ -2967,7 +3017,7 @@ const profile=url.pathname.match(/^\/api\/leads\/(\d+)\/profile$/);if(profile&&r
     if(req.method==='GET'&&url.pathname==='/api/followups'){
       const viewer=viewerFromRequest(req),status=(url.searchParams.get('status')||'').toUpperCase();const where=[];const params=[];if(!viewerIsOwner(viewer)){where.push('l.assigned_to=?');params.push(viewer.id);}if(status==='OVERDUE'){where.push("f.status='PENDING' AND f.due_at<?");params.push(nowIso());}else if(status){where.push('f.status=?');params.push(status);}const rows=db.prepare(`SELECT f.*,l.lead_code,l.temperature,l.priority AS lead_priority,l.form_status,l.form_completion_percent,l.work_status,l.hold_reason,l.pipeline_stage,c.name AS customer_name,c.company,u.name AS staff_name,(SELECT product_name FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS product_name,CASE WHEN f.status='PENDING' AND f.due_at<? THEN 1 ELSE 0 END AS overdue FROM followups f JOIN leads l ON l.id=f.lead_id JOIN customers c ON c.id=l.customer_id LEFT JOIN users u ON u.id=l.assigned_to ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE WHEN f.status='PENDING' THEN 0 ELSE 1 END,f.due_at LIMIT 500`).all(nowIso(),...params);return sendJson(res,200,{ok:true,data:rows});
     }
-    if(req.method==='GET'&&url.pathname==='/api/quotations'){const viewer=viewerFromRequest(req);const where=!viewerIsOwner(viewer)?' WHERE l.assigned_to=?':'';const rows=db.prepare(`SELECT q.*,l.lead_code,c.name AS customer_name,c.company FROM quotations q JOIN leads l ON l.id=q.lead_id JOIN customers c ON c.id=l.customer_id${where} ORDER BY q.created_at DESC LIMIT 500`).all(...(!viewerIsOwner(viewer)?[viewer.id]:[]));return sendJson(res,200,{ok:true,data:rows});}
+    if(req.method==='GET'&&url.pathname==='/api/quotations'){const viewer=viewerFromRequest(req),owner=viewerIsOwner(viewer);const where=owner?'':' WHERE l.assigned_to=?',params=owner?[]:[viewer.id];const legacy=db.prepare(`SELECT q.*,l.lead_code,c.name AS customer_name,c.company,0 AS uploaded_file,NULL AS file_name,NULL AS file_url FROM quotations q JOIN leads l ON l.id=q.lead_id JOIN customers c ON c.id=l.customer_id${where}`).all(...params);const uploads=db.prepare(`SELECT qu.id,qu.quotation_no,qu.lead_id,qu.status,qu.total,qu.created_at,l.lead_code,c.name AS customer_name,c.company,1 AS uploaded_file,qu.file_name,('/api/quotation-uploads/'||qu.id||'/file') AS file_url FROM quotation_uploads qu JOIN leads l ON l.id=qu.lead_id JOIN customers c ON c.id=l.customer_id${where}`).all(...params);const rows=[...uploads,...legacy].sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||''))).slice(0,500);return sendJson(res,200,{ok:true,data:rows});}
     if(req.method==='GET'&&url.pathname==='/api/manager'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Overall company reports are available only to the owner.'});return sendJson(res,200,{ok:true,data:managerData(url)});}
 
     if(req.method==='GET'&&url.pathname==='/api/price-source/status')return sendJson(res,200,{ok:true,data:priceSourceAdminStatus()});
