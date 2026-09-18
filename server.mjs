@@ -42,8 +42,8 @@ const SCORE_FACTORS_V2 = [
 const SCORE_CONFIG_VERSION = '2';
 const ANALYSIS_VERSION = 8;
 const PRODUCT_INTELLIGENCE_VERSION = 'V3_REQUEST_AWARE';
-const DEPLOYMENT_VERSION = 'V2_11_3_STAFF_PROFILE_SETUP_RECOVERY';
-const APP_VERSION = '2.11.4';
+const DEPLOYMENT_VERSION = 'V2_11_11_RELEASE_GATE_HOME_VARIABLE_FIX';
+const APP_VERSION = '2.11.11';
 const CLIENT_LAUNCHER_VERSION = '2.11.4';
 const GITHUB_UPDATE_REPO = String(process.env.CRM_UPDATE_REPO||'Nunes-instruments/Nunes_AI_Crm').trim();
 const GITHUB_UPDATE_BRANCH = String(process.env.CRM_UPDATE_BRANCH||'main').trim()||'main';
@@ -514,6 +514,11 @@ function initSchema() {
   ensureColumn('leads','work_status_changed_at','TEXT');
   ensureColumn('leads','work_status_changed_by','INTEGER');
   ensureColumn('leads','work_completed_at','TEXT');
+  // V2.11.5: fast no-response skip. Additive only; no existing lead data is removed.
+  ensureColumn('leads','quick_skip_reason','TEXT');
+  ensureColumn('leads','quick_skip_at','TEXT');
+  ensureColumn('leads','quick_skip_by','INTEGER');
+  ensureColumn('leads','quick_skip_count','INTEGER DEFAULT 0');
   ensureColumn('device_sessions','client_version','TEXT');
   ensureColumn('device_sessions','last_server_version','TEXT');
   ensureColumn('device_sessions','last_update_check_at','TEXT');
@@ -525,6 +530,7 @@ function initSchema() {
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_form_status ON leads(form_status, form_completed_at DESC);');
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_assigned_form ON leads(assigned_to, form_status, received_at DESC);');
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_work_status ON leads(work_status, work_status_changed_at DESC);');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_leads_quick_skip ON leads(quick_skip_at DESC, quick_skip_by);');
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (1,?)').run(nowIso());
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (2,?)').run(nowIso());
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (3,?)').run(nowIso());
@@ -538,6 +544,7 @@ function initSchema() {
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (11,?)').run(nowIso());
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (12,?)').run(nowIso());
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (13,?)').run(nowIso());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES (14,?)').run(nowIso());
 
 }
 
@@ -1377,7 +1384,7 @@ const LEAD_LIST_SELECT = `SELECT l.*, c.name AS customer_name,c.company,c.city,c
   pr.product_name AS product_name,pr.quantity AS quantity ${LEAD_LIST_FROM}`;
 const LEAD_COMPACT_SELECT = `SELECT l.id,l.lead_code,l.customer_id,l.source_type,l.received_at,l.assigned_to,l.temperature,l.purchase_probability,l.ai_score,l.verified_score,l.priority,
   l.pipeline_stage,l.expected_value,l.last_contact_at,l.first_response_at,l.next_followup_at,l.response_status,l.contact_attempts,l.status,l.live_classification,l.next_action,
-  l.product_analysis_status,l.price_analysis_status,l.qualification_status,l.possible_duplicate,l.market_type_override,
+  l.product_analysis_status,l.price_analysis_status,l.qualification_status,l.possible_duplicate,l.market_type_override,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.work_status_changed_at,l.work_completed_at,
   c.name AS customer_name,c.company,c.city,c.state,c.country,c.phone,c.email,u.name AS owner_name,pr.product_name AS product_name,pr.requested_model AS requested_model,pr.quantity AS quantity,
   COALESCE((SELECT MAX(lp0.match_confidence) FROM lead_products lp0 WHERE lp0.lead_id=l.id),0) AS product_match_confidence,
   CASE WHEN EXISTS(SELECT 1 FROM lead_products lp1 JOIN product_prices pp1 ON pp1.product_id=lp1.product_id WHERE lp1.lead_id=l.id AND COALESCE(pp1.suggested_selling_price,pp1.selling_price,pp1.previous_quoted_price)>0) THEN 'MATCHED'
@@ -1398,6 +1405,7 @@ function leadListFilters(url){
   const contact=url.searchParams.get('contact');
   const source=url.searchParams.get('source');
   const owner=url.searchParams.get('owner');
+  const formStatus=String(url.searchParams.get('form_status')||'').toUpperCase();
   const where=[]; const params=[];
   if(temperatureGroup==='HOT'||temp==='HOT')where.push(`l.temperature IN ('HOT','VERY HOT')`);
   else if(temp){where.push('l.temperature=?');params.push(temp);}
@@ -1407,6 +1415,8 @@ function leadListFilters(url){
   if(contact==='CONTACTED')where.push('l.last_contact_at IS NOT NULL');
   if(source){where.push('l.source_type=?');params.push(source);}
   if(owner){where.push('l.assigned_to=?');params.push(Number(owner));}
+  if(formStatus==='COMPLETED')where.push("COALESCE(l.form_status,'WAITING')='COMPLETED'");
+  else if(formStatus==='INCOMPLETE')where.push("COALESCE(l.form_status,'WAITING')<>'COMPLETED'");
   if(q){
     const like=`%${q}%`;
     where.push(`(l.lead_code LIKE ? COLLATE NOCASE OR c.name LIKE ? COLLATE NOCASE OR COALESCE(c.company,'') LIKE ? COLLATE NOCASE OR COALESCE(c.phone,'') LIKE ? COLLATE NOCASE OR COALESCE(c.email,'') LIKE ? COLLATE NOCASE OR COALESCE(pr.product_name,'') LIKE ? COLLATE NOCASE OR COALESCE(pr.requested_model,'') LIKE ? COLLATE NOCASE OR COALESCE(c.city,'') LIKE ? COLLATE NOCASE OR COALESCE(c.state,'') LIKE ? COLLATE NOCASE)`);
@@ -1476,7 +1486,7 @@ function issueDeviceSession(userId,deviceType='STAFF',deviceName=''){
   const user=db.prepare('SELECT id,name,email,role,designation,photo_data,display_order,phone,active FROM users WHERE id=? AND active=1').get(Number(userId));
   if(!user)throw new Error('CRM user profile is not active.');
   const raw=randomBytes(32).toString('hex'),hash=deviceTokenHash(raw),stamp=nowIso();
-  db.prepare('INSERT INTO device_sessions(token_hash,user_id,device_type,device_name,active,created_at,last_seen_at,client_version,last_server_version,last_update_check_at) VALUES (?,?,?,?,1,?,?,?,?,?)').run(hash,user.id,String(deviceType||'STAFF').toUpperCase(),String(deviceName||'').slice(0,160)||null,stamp,stamp,null,APP_VERSION,stamp);
+  db.prepare('INSERT INTO device_sessions(token_hash,user_id,device_type,device_name,active,created_at,last_seen_at,client_version,last_server_version,last_update_check_at) VALUES (?,?,?,?,1,?,?,?,?,?)').run(hash,user.id,String(deviceType||'STAFF').toUpperCase(),String(deviceName||'').slice(0,160)||null,stamp,stamp,CLIENT_LAUNCHER_VERSION,APP_VERSION,stamp);
   return {device_token:raw,user};
 }
 function sessionViewerFromToken(token=''){
@@ -1537,6 +1547,45 @@ function setLeadWorkStatus(leadId,status,reason='',viewer=null,{silentDuplicate=
   }
   bumpDataRevision();return after;
 }
+
+const QUICK_SKIP_REASONS={
+  CALL_NO_ANSWER:'Customer did not answer call',
+  TEXT_NO_REPLY:'Customer did not reply to text'
+};
+function quickSkipReasonLabel(code=''){
+  return QUICK_SKIP_REASONS[String(code||'').trim().toUpperCase()]||'Customer no response';
+}
+function recordLeadQuickSkip(leadId,reasonCode,viewer=null){
+  const code=String(reasonCode||'').trim().toUpperCase(),reason=QUICK_SKIP_REASONS[code];
+  if(!reason)throw new Error('Choose either Customer did not answer call or Customer did not reply to text.');
+  const before=leadWorkContext(leadId);if(!before)throw new Error('Lead not found');
+  const stamp=nowIso(),by=Number(viewer?.id||before.assigned_to||ownerUserId()),staff=before?.staff_name||viewer?.name||'Staff';
+  const response=code==='CALL_NO_ANSWER'?'NO ANSWER':'NO REPLY';
+  db.prepare(`UPDATE leads SET quick_skip_reason=?,quick_skip_at=?,quick_skip_by=?,quick_skip_count=COALESCE(quick_skip_count,0)+1,
+    response_status=?,contact_attempts=COALESCE(contact_attempts,0)+1,last_contact_at=?,
+    work_status='HOLD',hold_reason=?,work_status_changed_at=?,work_status_changed_by=?,work_completed_at=NULL,updated_at=? WHERE id=?`)
+    .run(code,stamp,by,response,stamp,reason,stamp,by,stamp,leadId);
+  const method=code==='CALL_NO_ANSWER'?'CALL':'MESSAGE';
+  db.prepare('INSERT INTO communications(lead_id,method,direction,subject,body,outcome,communicated_at,user_id) VALUES (?,?,?,?,?,?,?,?)')
+    .run(leadId,method,'OUTBOUND','No-response quick skip',reason,response,stamp,by);
+  addActivity(leadId,'QUICK_SKIP',`Form skipped — ${reason}`,`${staff} saved this enquiry without filling the full form because the customer did not respond.`);
+  createOwnerWorkNotification(leadId,'STAFF_NO_RESPONSE',`${staff} skipped ${before.lead_code||`Lead ${leadId}`} — ${reason}.`);
+  bumpDataRevision();
+  return db.prepare(`SELECT l.id,l.lead_code,l.quick_skip_reason,l.quick_skip_at,l.quick_skip_by,l.quick_skip_count,l.work_status,l.hold_reason,l.response_status,u.name AS staff_name,c.name AS customer_name,pr.product_name
+    FROM leads l LEFT JOIN users u ON u.id=l.assigned_to JOIN customers c ON c.id=l.customer_id LEFT JOIN product_requirements pr ON pr.id=(SELECT MIN(x.id) FROM product_requirements x WHERE x.lead_id=l.id) WHERE l.id=?`).get(leadId);
+}
+function quickSkipRows(userId=null,limit=30,window=null){
+  const where=['l.quick_skip_at IS NOT NULL'],params=[];
+  if(userId){where.push('l.assigned_to=?');params.push(Number(userId));}
+  if(window?.start&&window?.end){where.push('l.quick_skip_at>=? AND l.quick_skip_at<?');params.push(window.start,window.end);}
+  params.push(Math.max(1,Math.min(100,Number(limit)||30)));
+  return db.prepare(`SELECT l.id,l.lead_code,l.quick_skip_reason,l.quick_skip_at,l.quick_skip_count,l.response_status,l.work_status,l.hold_reason,
+    u.name AS staff_name,c.name AS customer_name,c.company,pr.product_name
+    FROM leads l LEFT JOIN users u ON u.id=l.assigned_to JOIN customers c ON c.id=l.customer_id
+    LEFT JOIN product_requirements pr ON pr.id=(SELECT MIN(x.id) FROM product_requirements x WHERE x.lead_id=l.id)
+    WHERE ${where.join(' AND ')} ORDER BY l.quick_skip_at DESC LIMIT ?`).all(...params);
+}
+
 function clientLauncherPayload(){
   const file=path.join(ROOT,'scripts','open_staff_app.ps1');const text=fs.readFileSync(file,'utf8');return {text,sha256:createHash('sha256').update(text,'utf8').digest('hex')};
 }
@@ -1643,7 +1692,8 @@ function staffStatusForWindow(userId,window){
     SUM(CASE WHEN COALESCE(work_status,'ACTIVE')='HOLD' THEN 1 ELSE 0 END) AS on_hold,
     SUM(CASE WHEN COALESCE(work_status,'ACTIVE')='COMPLETED' THEN 1 ELSE 0 END) AS work_completed
     FROM leads WHERE assigned_to=? AND received_at>=? AND received_at<?`).get(userId,window.start,window.end)||{};
-  return {total:Number(r.total||0),purchased:Number(r.purchased||0),not_purchase:Number(r.not_purchase||0),waiting:Number(r.waiting||0),pending:Number(r.pending||0),completed_ready:Number(r.completed_ready||0),on_hold:Number(r.on_hold||0),work_completed:Number(r.work_completed||0)};
+  const quickSkipped=Number(db.prepare(`SELECT COUNT(*) AS c FROM leads WHERE assigned_to=? AND quick_skip_at>=? AND quick_skip_at<?`).get(userId,window.start,window.end)?.c||0);
+  return {total:Number(r.total||0),purchased:Number(r.purchased||0),not_purchase:Number(r.not_purchase||0),waiting:Number(r.waiting||0),pending:Number(r.pending||0),completed_ready:Number(r.completed_ready||0),on_hold:Number(r.on_hold||0),work_completed:Number(r.work_completed||0),quick_skipped:quickSkipped};
 }
 function raceRowsFromTeam(team,field){
   const rows=(team||[]).map(u=>{const s=u[field]||{},status=u[`${field}_status`]||{};return {id:u.id,name:u.name,designation:u.designation,photo_data:u.photo_data,completed:Number(s.completed||0),assigned:Number(s.assigned||0),completion_rate:Number(s.completion_rate||0),won:Number(s.won||0),won_value:Number(s.won_value||0),waiting:Number(status.waiting||0),pending:Number(status.pending||0),not_purchase:Number(status.not_purchase||0),purchased:Number(status.purchased||0)}});
@@ -1652,14 +1702,14 @@ function raceRowsFromTeam(team,field){
 }
 function staffLeadRows(userId,{waitingOnly=false,limit=25}={}){
   const extra=waitingOnly?" AND l.pipeline_stage NOT IN ('WON','LOST') AND (COALESCE(l.form_status,'WAITING')<>'COMPLETED' OR COALESCE(l.product_analysis_status,'PENDING') NOT IN ('COMPLETE','COMPLETED','AVAILABLE','READY') OR COALESCE(l.price_analysis_status,'PENDING') NOT IN ('COMPLETE','COMPLETED','AVAILABLE','READY','VERIFIED'))":'';
-  return db.prepare(`SELECT l.id,l.lead_code,l.received_at,l.pipeline_stage,l.order_status,l.temperature,l.purchase_probability,l.product_analysis_status,l.price_analysis_status,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.work_status_changed_at,l.work_completed_at,l.response_status,l.budget_status,c.name AS customer_name,c.company,c.city,c.state,c.country,pr.product_name,pr.requested_model,u.name AS owner_name
+  return db.prepare(`SELECT l.id,l.lead_code,l.received_at,l.pipeline_stage,l.order_status,l.temperature,l.purchase_probability,l.product_analysis_status,l.price_analysis_status,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.work_status_changed_at,l.work_completed_at,l.quick_skip_reason,l.quick_skip_at,l.quick_skip_count,l.response_status,l.budget_status,c.name AS customer_name,c.company,c.city,c.state,c.country,pr.product_name,pr.requested_model,u.name AS owner_name
     FROM leads l JOIN customers c ON c.id=l.customer_id LEFT JOIN users u ON u.id=l.assigned_to LEFT JOIN product_requirements pr ON pr.id=(SELECT MIN(x.id) FROM product_requirements x WHERE x.lead_id=l.id)
     WHERE l.assigned_to=?${extra} ORDER BY CASE WHEN l.pipeline_stage IN ('WON','LOST') THEN 1 ELSE 0 END,l.received_at DESC LIMIT ?`).all(userId,limit);
 }
 function staffDashboardData(userId,period='TODAY'){
   const staff=db.prepare("SELECT id,name,email,role,designation,photo_data,display_order,phone,active FROM users WHERE id=? AND active=1").get(userId);if(!staff)throw new Error('Staff member not found.');
   const windows={TODAY:dashboardWindow('TODAY'),THIS_WEEK:dashboardWindow('THIS_WEEK'),THIS_MONTH:dashboardWindow('THIS_MONTH')};
-  return {staff,selected_period:String(period||'TODAY').toUpperCase(),today:staffSummaryForWindow(userId,windows.TODAY),week:staffSummaryForWindow(userId,windows.THIS_WEEK),month:staffSummaryForWindow(userId,windows.THIS_MONTH),today_status:staffStatusForWindow(userId,windows.TODAY),week_status:staffStatusForWindow(userId,windows.THIS_WEEK),month_status:staffStatusForWindow(userId,windows.THIS_MONTH),daily_trend:dailyStaffTrend(userId,7),weekly_trend:weeklyStaffTrend(userId,8),monthly_trend:monthlyStaffTrend(userId,6),waiting_leads:staffLeadRows(userId,{waitingOnly:true,limit:30}),recent_leads:staffLeadRows(userId,{limit:30}),revision:dataRevision,generated_at:nowIso()};
+  return {staff,selected_period:String(period||'TODAY').toUpperCase(),today:staffSummaryForWindow(userId,windows.TODAY),week:staffSummaryForWindow(userId,windows.THIS_WEEK),month:staffSummaryForWindow(userId,windows.THIS_MONTH),today_status:staffStatusForWindow(userId,windows.TODAY),week_status:staffStatusForWindow(userId,windows.THIS_WEEK),month_status:staffStatusForWindow(userId,windows.THIS_MONTH),daily_trend:dailyStaffTrend(userId,7),weekly_trend:weeklyStaffTrend(userId,8),monthly_trend:monthlyStaffTrend(userId,6),waiting_leads:staffLeadRows(userId,{waitingOnly:true,limit:30}),recent_leads:staffLeadRows(userId,{limit:30}),quick_skips:quickSkipRows(userId,30),revision:dataRevision,generated_at:nowIso()};
 }
 
 function staffDateWorkWindow(period='TODAY'){
@@ -1703,7 +1753,7 @@ function staffDateWorkData(userId,period='TODAY'){
 function ownerDashboardData(period='TODAY'){
   const selected=dashboardWindow(period),today=dashboardWindow('TODAY'),week=dashboardWindow('THIS_WEEK'),month=dashboardWindow('THIS_MONTH');const staff=teamUsers().filter(x=>x.role!=='ADMIN');
   const team=staff.map(u=>({...u,period:staffSummaryForWindow(u.id,selected),status:staffStatusForWindow(u.id,selected),today:staffSummaryForWindow(u.id,today),today_status:staffStatusForWindow(u.id,today),week:staffSummaryForWindow(u.id,week),week_status:staffStatusForWindow(u.id,week),month:staffSummaryForWindow(u.id,month),month_status:staffStatusForWindow(u.id,month)}));
-  const teamTotals=team.reduce((a,x)=>{for(const k of ['assigned','completed','won','open_leads','pending_forms','waiting_product','waiting_price','missing_budget','overdue_followups'])a[k]=(a[k]||0)+Number(x.period[k]||0);for(const k of ['waiting','pending','not_purchase','purchased','completed_ready','on_hold','work_completed'])a[k]=(a[k]||0)+Number(x.status[k]||0);a.won_value=(a.won_value||0)+Number(x.period.won_value||0);return a;},{});
+  const teamTotals=team.reduce((a,x)=>{for(const k of ['assigned','completed','won','open_leads','pending_forms','waiting_product','waiting_price','missing_budget','overdue_followups'])a[k]=(a[k]||0)+Number(x.period[k]||0);for(const k of ['waiting','pending','not_purchase','purchased','completed_ready','on_hold','work_completed','quick_skipped'])a[k]=(a[k]||0)+Number(x.status[k]||0);a.won_value=(a.won_value||0)+Number(x.period.won_value||0);return a;},{});
   teamTotals.completion_rate=teamTotals.assigned?Math.min(100,Math.round(teamTotals.completed*100/teamTotals.assigned)):(teamTotals.completed?100:0);
   teamTotals.available_staff=team.filter(x=>x.period.can_take_client).length;teamTotals.staff_count=team.length;
   const recent=db.prepare(`SELECT l.id,l.lead_code,l.received_at,l.pipeline_stage,l.order_status,l.temperature,l.purchase_probability,l.product_analysis_status,l.price_analysis_status,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.work_status_changed_at,l.work_completed_at,c.name AS customer_name,c.company,pr.product_name,u.id AS owner_id,u.name AS owner_name
@@ -1717,9 +1767,9 @@ function ownerDashboardData(period='TODAY'){
   const ownerActivity=db.prepare(`SELECT l.id,l.lead_code,l.work_status,l.hold_reason,l.work_status_changed_at,l.work_completed_at,u.name AS staff_name,c.name AS customer_name,pr.product_name
     FROM leads l LEFT JOIN users u ON u.id=l.assigned_to JOIN customers c ON c.id=l.customer_id LEFT JOIN product_requirements pr ON pr.id=(SELECT MIN(x.id) FROM product_requirements x WHERE x.lead_id=l.id)
     WHERE l.work_status_changed_at IS NOT NULL ORDER BY l.work_status_changed_at DESC LIMIT 30`).all();
-  const unreadOwner=Number(db.prepare("SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND is_read=0 AND type IN ('STAFF_HOLD','STAFF_COMPLETED','STAFF_RESUMED')").get(ownerUserId())?.c||0);
+  const unreadOwner=Number(db.prepare("SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND is_read=0 AND type IN ('STAFF_HOLD','STAFF_COMPLETED','STAFF_RESUMED','STAFF_NO_RESPONSE')").get(ownerUserId())?.c||0);
   const devices=clientDeviceStatus();
-  return {period:selected.period,period_start:selected.start,period_end:selected.end,totals:teamTotals,team,races,daily_trend:dailyStaffTrend(null,7),weekly_trend:weeklyStaffTrend(null,8),monthly_trend:monthlyStaffTrend(null,6),recent_forms:recent,owner_activity:ownerActivity,owner_unread:unreadOwner,client_devices:devices,client_update:{server_version:APP_VERSION,launcher_version:CLIENT_LAUNCHER_VERSION,current:devices.filter(x=>x.current).length,total:devices.length},assignment_queue:assignmentQueue,backup:{last_at:getSetting('auto_backup_last_at',''),last_file:getSetting('auto_backup_last_file',''),last_error:getSetting('auto_backup_last_error','')},revision:dataRevision,generated_at:nowIso()};
+  return {period:selected.period,period_start:selected.start,period_end:selected.end,totals:teamTotals,team,races,daily_trend:dailyStaffTrend(null,7),weekly_trend:weeklyStaffTrend(null,8),monthly_trend:monthlyStaffTrend(null,6),recent_forms:recent,owner_activity:ownerActivity,quick_skips:quickSkipRows(null,50,selected),owner_unread:unreadOwner,client_devices:devices,client_update:{server_version:APP_VERSION,launcher_version:CLIENT_LAUNCHER_VERSION,current:devices.filter(x=>x.current).length,total:devices.length},assignment_queue:assignmentQueue,backup:{last_at:getSetting('auto_backup_last_at',''),last_file:getSetting('auto_backup_last_file',''),last_error:getSetting('auto_backup_last_error','')},revision:dataRevision,generated_at:nowIso()};
 }
 function teamLiveSummary(period='TODAY'){const d=ownerDashboardData(period);return {period:d.period,races:d.races,revision:dataRevision,generated_at:d.generated_at};}
 
@@ -2794,6 +2844,10 @@ async function api(req,res,url){
     const leadAccessRoute=url.pathname.match(/^\/api\/leads\/(\d+)(?:\/|$)/);
     if(leadAccessRoute){const viewer=viewerFromRequest(req),leadId=Number(leadAccessRoute[1]);if(!viewerCanAccessLead(viewer,leadId))return sendJson(res,403,{ok:false,error:'This enquiry belongs to another staff member. Owner access is required.'});}
     const assignLead=url.pathname.match(/^\/api\/leads\/(\d+)\/assign$/);if(assignLead&&req.method==='PATCH'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Only the owner can assign enquiries.'});const id=Number(assignLead[1]),b=await readBody(req),userId=Number(b.user_id);const u=db.prepare("SELECT id,name FROM users WHERE id=? AND active=1 AND role='SALESPERSON'").get(userId);if(!u)return sendJson(res,400,{ok:false,error:'Choose a valid sales staff member.'});const lead=db.prepare('SELECT id,assigned_to FROM leads WHERE id=?').get(id);if(!lead)return sendJson(res,404,{ok:false,error:'Lead not found'});db.prepare('UPDATE leads SET assigned_to=?,updated_at=? WHERE id=?').run(userId,nowIso(),id);addActivity(id,'ASSIGNMENT','Lead assigned to staff',`Owner assigned this enquiry to ${u.name}.`);bumpDataRevision();return sendJson(res,200,{ok:true,data:{lead_id:id,user_id:userId,user_name:u.name}});}
+    const quickSkipRoute=url.pathname.match(/^\/api\/leads\/(\d+)\/quick-skip$/);if(quickSkipRoute&&req.method==='POST'){
+      const viewer=viewerFromRequest(req),id=Number(quickSkipRoute[1]);if(!viewerCanAccessLead(viewer,id))return sendJson(res,403,{ok:false,error:'This enquiry belongs to another staff member.'});if(viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Quick no-response skip is a staff action. Open the staff profile to record it.'});const b=await readBody(req);
+      return sendJson(res,200,{ok:true,data:recordLeadQuickSkip(id,b.reason_code,viewer)});
+    }
     const workStatusRoute=url.pathname.match(/^\/api\/leads\/(\d+)\/work-status$/);if(workStatusRoute&&req.method==='PATCH'){
       const viewer=viewerFromRequest(req),id=Number(workStatusRoute[1]);if(!viewerCanAccessLead(viewer,id))return sendJson(res,403,{ok:false,error:'This enquiry belongs to another staff member.'});const b=await readBody(req);
       return sendJson(res,200,{ok:true,data:setLeadWorkStatus(id,b.status,b.reason||'',viewer,{silentDuplicate:true})});
@@ -2876,6 +2930,7 @@ const profile=url.pathname.match(/^\/api\/leads\/(\d+)\/profile$/);if(profile&&r
     }
 
     const fm=url.pathname.match(/^\/api\/leads\/(\d+)\/followups$/);if(fm&&req.method==='POST'){const id=Number(fm[1]),b=await readBody(req);createFollowup(id,b);return sendJson(res,201,{ok:true,data:hydrateLead(id)});}
+    const fud=url.pathname.match(/^\/api\/followups\/(\d+)\/details$/);if(fud&&req.method==='GET'){const viewer=viewerFromRequest(req),row=db.prepare(`SELECT f.*,l.id AS lead_id,l.lead_code,l.assigned_to,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.pipeline_stage,l.order_status,c.name AS customer_name,c.company,c.phone,c.email,u.name AS staff_name,(SELECT product_name FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS product_name FROM followups f JOIN leads l ON l.id=f.lead_id JOIN customers c ON c.id=l.customer_id LEFT JOIN users u ON u.id=l.assigned_to WHERE f.id=?`).get(Number(fud[1]));if(!row)return sendJson(res,404,{ok:false,error:'Follow-up not found'});if(!viewerIsOwner(viewer)&&Number(row.assigned_to)!==Number(viewer?.id))return sendJson(res,403,{ok:false,error:'This follow-up belongs to another staff member.'});return sendJson(res,200,{ok:true,data:row});}
     const fum=url.pathname.match(/^\/api\/followups\/(\d+)$/);if(fum&&req.method==='PATCH'){const b=await readBody(req);return sendJson(res,200,{ok:true,data:completeFollowup(Number(fum[1]),b)});}
 
     const om=url.pathname.match(/^\/api\/leads\/(\d+)\/objections$/);if(om&&req.method==='POST'){
@@ -2907,7 +2962,7 @@ const profile=url.pathname.match(/^\/api\/leads\/(\d+)\/profile$/);if(profile&&r
     const psm=url.pathname.match(/^\/api\/pipeline\/stage$/);if(psm&&req.method==='GET'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Company pipeline is available only to the owner.'});const stage=url.searchParams.get('stage');if(!config.pipeline_stages.includes(stage))throw new Error('Invalid pipeline stage');return sendJson(res,200,{ok:true,data:pipelineStagePage(stage,url.searchParams.get('page'),url.searchParams.get('limit'))});}
 
     if(req.method==='GET'&&url.pathname==='/api/followups'){
-      const viewer=viewerFromRequest(req),status=(url.searchParams.get('status')||'').toUpperCase();const where=[];const params=[];if(!viewerIsOwner(viewer)){where.push('l.assigned_to=?');params.push(viewer.id);}if(status==='OVERDUE'){where.push("f.status='PENDING' AND f.due_at<?");params.push(nowIso());}else if(status){where.push('f.status=?');params.push(status);}const rows=db.prepare(`SELECT f.*,l.lead_code,l.temperature,l.priority AS lead_priority,c.name AS customer_name,c.company,(SELECT product_name FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS product_name,CASE WHEN f.status='PENDING' AND f.due_at<? THEN 1 ELSE 0 END AS overdue FROM followups f JOIN leads l ON l.id=f.lead_id JOIN customers c ON c.id=l.customer_id ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE WHEN f.status='PENDING' THEN 0 ELSE 1 END,f.due_at LIMIT 500`).all(nowIso(),...params);return sendJson(res,200,{ok:true,data:rows});
+      const viewer=viewerFromRequest(req),status=(url.searchParams.get('status')||'').toUpperCase();const where=[];const params=[];if(!viewerIsOwner(viewer)){where.push('l.assigned_to=?');params.push(viewer.id);}if(status==='OVERDUE'){where.push("f.status='PENDING' AND f.due_at<?");params.push(nowIso());}else if(status){where.push('f.status=?');params.push(status);}const rows=db.prepare(`SELECT f.*,l.lead_code,l.temperature,l.priority AS lead_priority,l.form_status,l.form_completion_percent,l.work_status,l.hold_reason,l.pipeline_stage,c.name AS customer_name,c.company,u.name AS staff_name,(SELECT product_name FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS product_name,CASE WHEN f.status='PENDING' AND f.due_at<? THEN 1 ELSE 0 END AS overdue FROM followups f JOIN leads l ON l.id=f.lead_id JOIN customers c ON c.id=l.customer_id LEFT JOIN users u ON u.id=l.assigned_to ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE WHEN f.status='PENDING' THEN 0 ELSE 1 END,f.due_at LIMIT 500`).all(nowIso(),...params);return sendJson(res,200,{ok:true,data:rows});
     }
     if(req.method==='GET'&&url.pathname==='/api/quotations'){const viewer=viewerFromRequest(req);const where=!viewerIsOwner(viewer)?' WHERE l.assigned_to=?':'';const rows=db.prepare(`SELECT q.*,l.lead_code,c.name AS customer_name,c.company FROM quotations q JOIN leads l ON l.id=q.lead_id JOIN customers c ON c.id=l.customer_id${where} ORDER BY q.created_at DESC LIMIT 500`).all(...(!viewerIsOwner(viewer)?[viewer.id]:[]));return sendJson(res,200,{ok:true,data:rows});}
     if(req.method==='GET'&&url.pathname==='/api/manager'){const viewer=viewerFromRequest(req);if(!viewerIsOwner(viewer))return sendJson(res,403,{ok:false,error:'Overall company reports are available only to the owner.'});return sendJson(res,200,{ok:true,data:managerData(url)});}

@@ -1,0 +1,13 @@
+NUNES AI CRM V2.11.11
+
+Release-gate compatibility fix for Windows PowerShell.
+
+Problem fixed:
+- PowerShell automatic variable $HOME is read-only and variable names are case-insensitive.
+- The isolated web smoke test used $home, which collided with $HOME and stopped the release after the test server started.
+
+Fix:
+- Renamed the response variable to $homeResponse.
+- Production main remains protected until syntax, isolated server, web smoke test, and GitHub Actions pass.
+- Existing V2.11.9 follow-up detail and Completed/Pending sidebar features are retained.
+- Live SQLite, .env, OAuth/device tokens, backups, logs, and staff photos remain excluded from GitHub test publication.

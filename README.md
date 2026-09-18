@@ -90,3 +90,7 @@ Run `SETUP_STAFF_PC.bat` once on each staff computer. It connects to the one mai
 ## V2.9.5 - Personal staff WhatsApp and Gmail
 
 Shared company messaging has been removed. Every staff computer/browser uses that staff member's own WhatsApp Web and Gmail login. Sign in once from the device-profile menu; customer message buttons then open the prepared message in that same personal browser session. Team Reports, live Today/Week/Month race, staff assignment rules, and the one central CRM database remain shared and unchanged.
+
+## V2.11.6 release workflow
+
+Production changes now use a test-first GitHub flow: edit the same source files, bump `VERSION.txt`, run `GITHUB_TEST_AND_RELEASE.bat`, publish to the `testing` branch, run isolated local and GitHub Actions tests, and only then fast-forward the exact tested commit to `main`. The MAIN SERVER continues to update from `main`; Owner and Staff receive the new web version automatically. Live SQLite data, `.env`, OAuth/device tokens, backups and logs stay on the MAIN SERVER and are excluded from GitHub/test environments.

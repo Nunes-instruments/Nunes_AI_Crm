@@ -1,0 +1,8 @@
+NUNES AI CRM V2.11.10
+
+Release-gate reliability fix:
+- Fixes false RELEASE STOPPED immediately after "Cloning into..." on Windows PowerShell 5.1.
+- Git progress written to STDERR is treated as normal output; only Git exit code decides success/failure.
+- Preserves V2.11.9 follow-up detail popup, Completed Forms, and Pending / Follow-Ups sidebar features.
+- Production main remains protected unless all tests pass.
+- Live SQLite database, .env, OAuth/device tokens, backups, logs and staff photos remain excluded from GitHub/test environment.

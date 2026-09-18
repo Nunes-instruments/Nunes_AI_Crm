@@ -1,0 +1,19 @@
+NUNES AI CRM V2.11.7 - GITHUB RELEASE GATE GIT ARGUMENT FIX
+
+Problem fixed
+- TEST ONLY / TEST + RELEASE could stop at "Cloning production main" and print the generic Git usage screen.
+- Root cause: the helper function used the parameter name $Args, which conflicts with PowerShell's automatic $args variable on Windows PowerShell 5.1. Git therefore received no subcommand.
+
+Fix
+- Renamed the function parameter to $GitArguments.
+- Added a guard that refuses to invoke Git with an empty argument list.
+- Added a compact command trace (git clone..., git fetch..., etc.) so future failures identify the exact Git command.
+- Production main remains untouched when TEST ONLY fails.
+- Live SQLite/.env/OAuth/device tokens/backups/logs/staff photos remain excluded.
+
+Recommended use
+1. Run UPDATE_REPAIR_SERVER.bat once on the MAIN SERVER to install V2.11.7.
+2. Run GITHUB_TEST_AND_RELEASE.bat.
+3. Choose 2 first (TEST ONLY).
+4. After TEST PASSED, run it again and choose 1 (TEST + RELEASE TO MAIN).
+5. The exact tested commit is promoted to main and the MAIN SERVER updates; Owner and Staff reload the new version automatically.

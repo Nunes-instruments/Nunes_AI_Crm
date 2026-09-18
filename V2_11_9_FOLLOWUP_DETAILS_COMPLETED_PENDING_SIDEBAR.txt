@@ -1,0 +1,14 @@
+NUNES AI CRM V2.11.9
+
+FOLLOW-UP DETAIL + COMPLETED/PENDING SIDEBAR UPDATE
+
+1. Planned Follow-ups on the staff dashboard are now clickable.
+2. Clicking a follow-up opens a detail window showing the exact saved date/time, method, reason, notes, priority, form status, work status and lead stage.
+3. Staff can open the full saved form directly from the follow-up detail window.
+4. Owner can see all staff follow-ups and the staff name, and can open the same saved detail view.
+5. Sidebar now contains Completed Forms and Pending / Follow-Ups for both Owner and Staff.
+6. Completed Forms shows only completed forms.
+7. Pending / Follow-Ups shows incomplete forms and pending follow-ups together.
+8. Staff security remains enforced: staff can only see their own assigned leads/follow-ups; Owner can see all staff.
+9. Existing SQLite data, .env, OAuth/device tokens, backups, logs and staff photos are not replaced.
+10. GitHub testing -> validation -> main -> main server -> Owner/Staff auto-refresh process is retained.

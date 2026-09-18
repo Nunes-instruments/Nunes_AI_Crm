@@ -1,0 +1,35 @@
+NUNES AI CRM V2.11.5 — FAST NO-RESPONSE SKIP + DASHBOARD HISTORY
+
+What changed
+============
+1. Staff Lead Form now shows two large buttons at the top:
+   - Customer Did Not Answer Call
+   - Customer Did Not Reply Text
+2. Staff can use either button without filling the long form.
+3. The CRM immediately saves:
+   - staff member
+   - lead/customer/product
+   - reason
+   - exact date/time
+   - attempt count
+4. The enquiry is placed On Hold with the same reason.
+5. The Owner receives a notification.
+6. Owner Dashboard shows a dedicated Customer No Response / Form Skipped list.
+7. Each Staff Dashboard shows My No Response / Skipped Customers.
+8. Date-wise Live History also records the quick-skip activity.
+9. Existing CRM data is preserved. Migration is additive only.
+10. GitHub/main-server auto-update flow is unchanged. Owner and Staff web apps reload after the server version changes.
+
+Data safety
+===========
+No existing lead/customer/quotation/history records are deleted.
+New fields are added only:
+- quick_skip_reason
+- quick_skip_at
+- quick_skip_by
+- quick_skip_count
+
+Recommended production update
+=============================
+Publish V2.11.5 source to GitHub main, or run UPDATE_REPAIR_SERVER.bat on the main server for the one-time package update.
+The server update process keeps the live SQLite database and .env outside source replacement.

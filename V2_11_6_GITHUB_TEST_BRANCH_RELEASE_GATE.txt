@@ -1,0 +1,50 @@
+NUNES AI CRM V2.11.6 - GITHUB TEST BRANCH RELEASE GATE
+=========================================================
+
+PURPOSE
+-------
+Never send an untested code change directly to the live Owner/Staff CRM.
+
+RECOMMENDED FUTURE FLOW
+-----------------------
+1. Edit the SAME NUNES AI CRM source files.
+2. Increase VERSION.txt.
+3. Run GITHUB_TEST_AND_RELEASE.bat.
+4. Choose TEST + RELEASE TO MAIN.
+5. The current source is published to the `testing` branch only.
+6. The branch is cloned back from GitHub and tested in an isolated temporary CRM with a fresh temporary database.
+7. GitHub Actions runs the same syntax/secret/smoke validation on `testing`.
+8. Only if BOTH local and GitHub tests pass is the exact tested commit fast-forwarded to `main`.
+9. MAIN SERVER downloads `main`, creates a pre-update SQLite backup, preserves live data/settings, installs changed application files, and restarts.
+10. Owner and Staff web apps detect the server version change and reload automatically.
+
+PRODUCTION SAFETY
+-----------------
+- `main` is production and is not changed when testing fails.
+- `testing` is the validation branch.
+- The isolated test CRM uses its own fresh temporary SQLite database.
+- Live SQLite data is never copied into the test branch or test server.
+- .env, OAuth/device tokens, credentials, logs, backups and runtime files are excluded from GitHub publishing.
+- Server updates preserve data/, backups/, logs/ and the existing .env.
+
+FILES
+-----
+GITHUB_TEST_AND_RELEASE.bat
+  Recommended one-click test/release workflow.
+
+GITHUB_PUBLISH_MASTER.bat
+  Option 1 now sends you through the test branch release gate.
+  Direct main push remains only as an emergency option.
+
+scripts/github_test_release.ps1
+  Implements testing branch publish, remote clone validation, isolated CRM smoke test,
+  GitHub Actions wait, exact-commit promotion, and immediate MAIN SERVER update.
+
+.github/workflows/validate.yml
+  Runs on both testing and main and includes an isolated server health smoke test.
+
+NORMAL DAILY CRM DATA
+---------------------
+Old leads, quotations, customer records, staff history, no-response records,
+hold/completed history, reports, owner notifications and settings remain in the
+MAIN SERVER database and are NOT erased by code releases.

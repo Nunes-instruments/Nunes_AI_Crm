@@ -2,36 +2,71 @@ name: Validate NUNES AI CRM
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, testing ]
   pull_request:
     branches: [ main ]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - name: Validate JavaScript syntax
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           node --check server.mjs
           node --check public/app.js
-          find services providers scripts -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+          find services providers scripts -type f \( -name '*.mjs' -o -name '*.js' \) -print0 | xargs -0 -r -n1 node --check
+
       - name: Block runtime data and obvious secrets
         shell: bash
         run: |
-          set -e
+          set -euo pipefail
           bad=0
           for f in .env data/nunes-crm.sqlite data/company-crm.json data/company-crm-key.txt data/gmail-oauth-token.json data/google-drive-auth.json; do
             if [ -e "$f" ]; then echo "Forbidden runtime/secret file committed: $f"; bad=1; fi
           done
+          if find . -type f \( -name '*.sqlite' -o -name '*.db' -o -name '*.log' -o -name '*.pid' \) -not -path './.git/*' | grep -q .; then
+            echo 'Forbidden runtime database/log/pid file committed.'
+            find . -type f \( -name '*.sqlite' -o -name '*.db' -o -name '*.log' -o -name '*.pid' \) -not -path './.git/*'
+            bad=1
+          fi
           if grep -RIE --exclude-dir=.git --exclude='*.png' --exclude='*.jpg' --exclude='*.jpeg' --exclude='*.ico' \
             '(AIza[0-9A-Za-z_-]{20,}|ls_live_[0-9A-Za-z_-]{15,}|sk-[0-9A-Za-z_-]{20,})' .; then
             echo 'Possible secret detected in repository.'
             bad=1
           fi
           exit $bad
+
+      - name: Isolated CRM smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          export CRM_PORT=18765
+          export CRM_NO_BROWSER=1
+          export CRM_GITHUB_AUTO_UPDATE=false
+          export CRM_UPDATE_BRANCH=testing
+          node --no-warnings server.mjs > /tmp/nunes-crm-test.log 2>&1 &
+          pid=$!
+          cleanup() { kill "$pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          ok=0
+          for i in $(seq 1 40); do
+            if curl --fail --silent "http://127.0.0.1:18765/api/health" > /tmp/health.json; then ok=1; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then break; fi
+            sleep 0.5
+          done
+          if [ "$ok" -ne 1 ]; then
+            cat /tmp/nunes-crm-test.log
+            exit 1
+          fi
+          node -e "const fs=require('fs'); const h=JSON.parse(fs.readFileSync('/tmp/health.json','utf8')); const v=fs.readFileSync('VERSION.txt','utf8').trim(); if(!h.ok||h.version!==v){console.error(h); process.exit(1)}"
+          curl --fail --silent "http://127.0.0.1:18765/" > /tmp/home.html
+          test -s /tmp/home.html
+          echo 'CRM isolated smoke test passed.'

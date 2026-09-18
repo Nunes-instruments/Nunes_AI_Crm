@@ -1,0 +1,19 @@
+NUNES AI CRM V2.11.8 - RELEASE GATE SHA CAPTURE FIX
+
+Fixes the false 'Remote testing commit changed' error where Git command output
+(checkout/commit/push text) leaked into the PowerShell function return value and
+was captured together with the expected commit SHA.
+
+The release gate now:
+- keeps Git output visible on screen but out of the PowerShell return pipeline;
+- captures only the final 40-character commit SHA for comparison;
+- verifies the cloned testing SHA exactly before any test/promotion;
+- retains isolated syntax/health/home-page tests and GitHub Actions validation;
+- keeps production main untouched on any test failure;
+- preserves live SQLite data, .env, OAuth/device tokens, backups and logs;
+- adds .gitattributes for deterministic Windows/Linux line endings.
+
+Use on MAIN SERVER:
+1. UPDATE_REPAIR_SERVER.bat -> option 2 once, to install V2.11.8 locally.
+2. GITHUB_TEST_AND_RELEASE.bat -> option 2 (TEST ONLY).
+3. If TEST PASSED, run again -> option 1 (TEST + RELEASE TO MAIN).

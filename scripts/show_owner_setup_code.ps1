@@ -11,6 +11,7 @@ $PortFile=Join-Path $AppRoot 'data\active_port.txt'
 $StartFile=Join-Path $AppRoot 'START_CRM_SERVER_ONLY.bat'
 $StopFile=Join-Path $AppRoot 'STOP_CRM.bat'
 $CodeFile=Join-Path $AppRoot 'data\OWNER_SETUP_CODE.txt'
+$VersionFile=Join-Path $AppRoot 'VERSION.txt'
 
 function Get-CrmPort {
   $p=8765
@@ -61,7 +62,9 @@ if(!$ready){
 # is still occupying the port after an upgrade, restart once so the new code runs.
 $port=[int]$ready.port
 $health=$ready.health
-$needsRestart=([string]$health.version -ne '2.11.4')
+$expectedVersion=''
+try{if(Test-Path -LiteralPath $VersionFile){$expectedVersion=(Get-Content -LiteralPath $VersionFile -Raw).Trim()}}catch{}
+$needsRestart=([string]::IsNullOrWhiteSpace($expectedVersion) -or [string]$health.version -ne $expectedVersion)
 if(!$needsRestart){
   try{
     $reply=Invoke-RestMethod -UseBasicParsing -Uri "http://127.0.0.1:$port/api/device/owner-setup-code" -TimeoutSec 3
