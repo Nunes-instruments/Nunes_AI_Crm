@@ -1,7 +1,34 @@
 param([Parameter(Mandatory=$true)][string]$ConfigPath)
 $ErrorActionPreference='Stop'
-$ClientVersion='2.11.4'
+$ClientVersion='2.11.13'
 Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
+
+$KnownLanServer='http://192.168.29.194:8765'
+$KnownTailscaleServer='http://100.97.196.17:8765'
+
+function Normalize-Server([string]$Value){
+  if([string]::IsNullOrWhiteSpace($Value)){return $null}
+  $s=$Value.Trim().TrimEnd('/')
+  if($s -notmatch '^https?://'){$s='http://'+$s}
+  try{
+    $u=[Uri]$s
+    if($u.IsDefaultPort -and $s -notmatch ':\d+$'){$s=$s+':8765'}
+    return $s
+  }catch{return $null}
+}
+function Test-CrmServer([string]$Value,[int]$Timeout=2){
+  try{
+    $s=Normalize-Server $Value
+    if(!$s){return $null}
+    $h=Invoke-RestMethod -UseBasicParsing -Uri "$s/api/health" -TimeoutSec $Timeout
+    if($h.app -eq 'NUNES_AI_CRM_V1'){return $s}
+  }catch{}
+  return $null
+}
+function Add-ServerCandidate([System.Collections.Generic.List[string]]$List,[string]$Value){
+  $s=Normalize-Server $Value
+  if($s -and !$List.Contains($s)){[void]$List.Add($s)}
+}
 
 function Show-Error([string]$Message){
   try{[System.Windows.Forms.MessageBox]::Show($Message,'NUNES AI CRM',[System.Windows.Forms.MessageBoxButtons]::OK,[System.Windows.Forms.MessageBoxIcon]::Warning)|Out-Null}catch{Write-Host $Message}
@@ -67,17 +94,34 @@ function Try-SelfUpdate([string]$Server,[string]$Token,$Cfg){
 
 if(!(Test-Path -LiteralPath $ConfigPath)){Show-Error 'CRM desktop setup is missing. Run the Owner or Staff PC setup once.';exit 1}
 $c=Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
-$server=([string]$c.server_url).Trim().TrimEnd('/')
 $token=[string]$c.device_token
 if([string]::IsNullOrWhiteSpace($token)){Show-Error 'This desktop app uses an old setup. Run the Owner or Staff PC setup once to securely link this computer.';exit 1}
 
-try{
-  $health=Invoke-RestMethod -UseBasicParsing -Uri "$server/api/health" -TimeoutSec 3
-  if($health.app -ne 'NUNES_AI_CRM_V1'){throw 'Wrong server'}
-}catch{
-  Show-Error "The main NUNES AI CRM server is not reachable.`n`nServer: $server`n`nMake sure the server computer is ON and connected to LAN/Tailscale."
+# V2.11.13 NETWORK FALLBACK:
+# Always try the current office LAN first, then saved/discovered addresses, then Tailscale.
+# If the working address changes, save it automatically. No staff IP typing is needed.
+$candidates=New-Object 'System.Collections.Generic.List[string]'
+Add-ServerCandidate $candidates $KnownLanServer
+try{@($c.server_candidates) | ForEach-Object {Add-ServerCandidate $candidates ([string]$_)}}catch{}
+Add-ServerCandidate $candidates ([string]$c.server_url)
+Add-ServerCandidate $candidates $KnownTailscaleServer
+$server=$null
+foreach($candidate in @($candidates)){
+  $server=Test-CrmServer $candidate 2
+  if($server){break}
+}
+if(!$server){
+  Show-Error "The main NUNES AI CRM server is not reachable.`n`nLAN: $KnownLanServer`nTailscale: $KnownTailscaleServer`n`nMake sure the MAIN SERVER PC is ON and LAN/Tailscale is connected."
   exit 2
 }
+try{
+  if(([string]$c.server_url).TrimEnd('/') -ne $server){
+    $c.server_url=$server
+    $c.server_candidates=@($candidates)
+    $c.last_server_switch=(Get-Date).ToString('o')
+    $c | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $ConfigPath -Encoding UTF8
+  }
+}catch{}
 
 # From V2.10.0 onward, every Owner/Staff desktop launcher updates itself from the main server.
 # CRM page/function changes are central and already appear immediately without a client reinstall.

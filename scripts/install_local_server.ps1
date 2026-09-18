@@ -46,26 +46,36 @@ function Copy-TreeIncremental([string]$Source,[string]$Destination){
 
 function Get-ServerCandidates {
   $list=New-Object System.Collections.Generic.List[string]
-  if($env:COMPUTERNAME){[void]$list.Add("http://$($env:COMPUTERNAME):$Port")}
+  function Add-ServerCandidate([string]$Value){
+    if([string]::IsNullOrWhiteSpace($Value)){return}
+    if(!$list.Contains($Value)){[void]$list.Add($Value)}
+  }
+
+  # Current NUNES MAIN SERVER preferred addresses.
+  # Office LAN first for lowest latency; Tailscale is the stable fallback.
+  Add-ServerCandidate "http://192.168.29.194:$Port"
+
   try{
     [System.Net.Dns]::GetHostAddresses([System.Net.Dns]::GetHostName()) | ForEach-Object {
       if($_.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork){
         $ip=$_.IPAddressToString
-        if($ip -and $ip -notlike '127.*' -and $ip -notlike '169.254.*' -and $ip -ne '0.0.0.0'){
-          [void]$list.Add("http://$ip`:$Port")
+        if($ip -and $ip -notlike '127.*' -and $ip -notlike '169.254.*' -and $ip -ne '0.0.0.0' -and $ip -notlike '100.*'){
+          Add-ServerCandidate "http://$ip`:$Port"
         }
       }
     }
   }catch{}
-  # Tailscale command gives a stable 100.x address when installed.
+
+  Add-ServerCandidate "http://100.97.196.17:$Port"
   try{
     $tailscale=Get-Command tailscale.exe -ErrorAction SilentlyContinue
     if($tailscale){
       $tip=(& $tailscale.Source ip -4 2>$null | Select-Object -First 1).Trim()
-      if($tip){[void]$list.Insert(0,"http://$tip`:$Port")}
+      if($tip){Add-ServerCandidate "http://$tip`:$Port"}
     }
   }catch{}
-  return @($list | Select-Object -Unique)
+  if($env:COMPUTERNAME){Add-ServerCandidate "http://$($env:COMPUTERNAME):$Port"}
+  return @($list)
 }
 
 function Publish-StaffServerConfig([string]$TargetRoot){
@@ -74,7 +84,7 @@ function Publish-StaffServerConfig([string]$TargetRoot){
     $cfgDir=Join-Path $TargetRoot 'config'
     New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
     $obj=[ordered]@{
-      version='2.11.11'
+      version='2.11.13'
       port=$Port
       computer_name=$env:COMPUTERNAME
       candidates=@(Get-ServerCandidates)

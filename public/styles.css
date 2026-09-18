@@ -365,3 +365,5 @@ button[aria-busy="true"]{pointer-events:auto}
 .followup-filled-box{padding:14px 16px;border:1px solid #dbe5f4;border-radius:12px;background:#fff}.followup-filled-box span{font-size:11px;font-weight:900;letter-spacing:.04em;color:#5a6b82}.followup-filled-box p{margin:7px 0 0;white-space:pre-wrap;font-size:15px;line-height:1.55}.followup-filled-box.warning{background:#fff9eb;border-color:#f3d895}
 .pending-work-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
 @media(max-width:760px){.pending-work-kpis{grid-template-columns:1fr}.followup-detail-head{display:block}.followup-detail-head .pill{margin-top:8px}}
+
+.info-grid.compact{padding:0;gap:10px}.followup-filled-box .info-grid.compact .info-item{background:#fff}.followup-detail-head p+p{margin-top:4px}.filter-bar.single{margin-bottom:16px}.table-wrap .data-table td,.table-wrap .data-table th{white-space:normal}.table-wrap .data-table td:nth-child(3),.table-wrap .data-table th:nth-child(3){min-width:180px}.table-wrap .data-table td:nth-child(2),.table-wrap .data-table th:nth-child(2){min-width:170px}

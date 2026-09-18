@@ -1,9 +1,9 @@
 {
   "name": "nunes-ai-sales-intelligence-crm",
-  "version": "2.11.11",
+  "version": "2.11.13",
   "private": true,
   "type": "module",
-  "description": "Nunes AI CRM V2.11.11: clickable follow-up filled-detail review for Staff and Owner, Completed Forms and Pending / Follow-Ups sidebar work queues, plus GitHub-safe release flow and data-safe auto-update.",
+  "description": "Nunes AI CRM V2.11.13: completed/pending/search fixes plus current MAIN server LAN/Tailscale auto-fallback for Owner and Staff launchers.",
   "engines": {
     "node": ">=22.5.0"
   },

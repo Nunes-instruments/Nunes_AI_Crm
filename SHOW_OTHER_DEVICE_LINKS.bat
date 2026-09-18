@@ -27,6 +27,10 @@ echo.
 echo LOCAL MAIN SERVER PC:
 echo   http://127.0.0.1:%CRM_PORT%
 echo.
+echo CURRENT PREFERRED ADDRESSES:
+echo   LAN:       http://192.168.29.194:%CRM_PORT%
+echo   TAILSCALE: http://100.97.196.17:%CRM_PORT%
+echo.
 echo OFFICE NETWORK ADDRESSES:
 powershell -NoLogo -NoProfile -NonInteractive -Command "$p='%CRM_PORT%'; Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue ^| Where-Object {$_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.InterfaceAlias -notmatch 'Loopback'} ^| Select-Object -ExpandProperty IPAddress -Unique ^| ForEach-Object {Write-Host ('  http://' + $_ + ':' + $p) -ForegroundColor Cyan}"
 echo.

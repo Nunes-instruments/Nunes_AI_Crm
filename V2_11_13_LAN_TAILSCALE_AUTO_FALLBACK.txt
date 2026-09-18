@@ -1,0 +1,26 @@
+NUNES AI CRM V2.11.13
+
+NETWORK / IP UPDATE
+- Preferred office LAN: http://192.168.29.194:8765
+- Tailscale fallback: http://100.97.196.17:8765
+- Staff and Owner setup tries LAN first, then Tailscale.
+- Owner/Staff desktop launcher now retries both addresses every time it opens.
+- The working server address is saved automatically; staff do not need to re-enter IP.
+- Main server setup also publishes detected LAN/Tailscale candidates.
+
+UI / WORK QUEUE FIXES INCLUDED
+- Follow-Up Details popup alignment corrected.
+- Follow-Up Details shows product + price snapshot when available.
+- Completed Forms and Pending / Follow-Ups have a top search box.
+- Work marked COMPLETED now appears in Completed Forms even when an older form_status remains IN PROGRESS.
+- Completed work is excluded from Pending / Follow-Ups.
+- Completed/Pending counts are calculated server-side, not only from the visible first page.
+- When generated product intelligence is unavailable, the Product Information section still shows confirmed customer/request product details instead of an empty warning-only section.
+
+ONLINE PRICE SAFETY
+- Existing exact-product online price search and Search Price Again remain enabled.
+- The CRM still does not invent a price when no reliable public exact-product price can be verified.
+
+DATA SAFETY
+- Live SQLite, .env, OAuth/device tokens, backups/logs and staff photos are not uploaded by the GitHub release gate.
+- Main server update keeps existing live data and creates the normal safety backup before replacing program files.

@@ -42,9 +42,9 @@ const SCORE_FACTORS_V2 = [
 const SCORE_CONFIG_VERSION = '2';
 const ANALYSIS_VERSION = 8;
 const PRODUCT_INTELLIGENCE_VERSION = 'V3_REQUEST_AWARE';
-const DEPLOYMENT_VERSION = 'V2_11_11_RELEASE_GATE_HOME_VARIABLE_FIX';
-const APP_VERSION = '2.11.11';
-const CLIENT_LAUNCHER_VERSION = '2.11.4';
+const DEPLOYMENT_VERSION = 'V2_11_13_LAN_TAILSCALE_AUTO_FALLBACK';
+const APP_VERSION = '2.11.13';
+const CLIENT_LAUNCHER_VERSION = '2.11.13';
 const GITHUB_UPDATE_REPO = String(process.env.CRM_UPDATE_REPO||'Nunes-instruments/Nunes_AI_Crm').trim();
 const GITHUB_UPDATE_BRANCH = String(process.env.CRM_UPDATE_BRANCH||'main').trim()||'main';
 const GITHUB_AUTO_UPDATE_ENABLED = String(process.env.CRM_GITHUB_AUTO_UPDATE||'true').toLowerCase()!=='false';
@@ -1406,6 +1406,7 @@ function leadListFilters(url){
   const source=url.searchParams.get('source');
   const owner=url.searchParams.get('owner');
   const formStatus=String(url.searchParams.get('form_status')||'').toUpperCase();
+  const completionStatus=String(url.searchParams.get('completion_status')||'').toUpperCase();
   const where=[]; const params=[];
   if(temperatureGroup==='HOT'||temp==='HOT')where.push(`l.temperature IN ('HOT','VERY HOT')`);
   else if(temp){where.push('l.temperature=?');params.push(temp);}
@@ -1415,7 +1416,9 @@ function leadListFilters(url){
   if(contact==='CONTACTED')where.push('l.last_contact_at IS NOT NULL');
   if(source){where.push('l.source_type=?');params.push(source);}
   if(owner){where.push('l.assigned_to=?');params.push(Number(owner));}
-  if(formStatus==='COMPLETED')where.push("COALESCE(l.form_status,'WAITING')='COMPLETED'");
+  if(completionStatus==='COMPLETED')where.push("(COALESCE(l.form_status,'WAITING')='COMPLETED' OR COALESCE(l.work_status,'ACTIVE')='COMPLETED')");
+  else if(completionStatus==='INCOMPLETE')where.push("(COALESCE(l.form_status,'WAITING')<>'COMPLETED' AND COALESCE(l.work_status,'ACTIVE')<>'COMPLETED')");
+  else if(formStatus==='COMPLETED')where.push("COALESCE(l.form_status,'WAITING')='COMPLETED'");
   else if(formStatus==='INCOMPLETE')where.push("COALESCE(l.form_status,'WAITING')<>'COMPLETED'");
   if(q){
     const like=`%${q}%`;
@@ -2930,7 +2933,7 @@ const profile=url.pathname.match(/^\/api\/leads\/(\d+)\/profile$/);if(profile&&r
     }
 
     const fm=url.pathname.match(/^\/api\/leads\/(\d+)\/followups$/);if(fm&&req.method==='POST'){const id=Number(fm[1]),b=await readBody(req);createFollowup(id,b);return sendJson(res,201,{ok:true,data:hydrateLead(id)});}
-    const fud=url.pathname.match(/^\/api\/followups\/(\d+)\/details$/);if(fud&&req.method==='GET'){const viewer=viewerFromRequest(req),row=db.prepare(`SELECT f.*,l.id AS lead_id,l.lead_code,l.assigned_to,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.pipeline_stage,l.order_status,c.name AS customer_name,c.company,c.phone,c.email,u.name AS staff_name,(SELECT product_name FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS product_name FROM followups f JOIN leads l ON l.id=f.lead_id JOIN customers c ON c.id=l.customer_id LEFT JOIN users u ON u.id=l.assigned_to WHERE f.id=?`).get(Number(fud[1]));if(!row)return sendJson(res,404,{ok:false,error:'Follow-up not found'});if(!viewerIsOwner(viewer)&&Number(row.assigned_to)!==Number(viewer?.id))return sendJson(res,403,{ok:false,error:'This follow-up belongs to another staff member.'});return sendJson(res,200,{ok:true,data:row});}
+    const fud=url.pathname.match(/^\/api\/followups\/(\d+)\/details$/);if(fud&&req.method==='GET'){const viewer=viewerFromRequest(req),row=db.prepare(`SELECT f.*,l.id AS lead_id,l.lead_code,l.assigned_to,l.form_status,l.form_completion_percent,l.form_last_saved_at,l.form_completed_at,l.work_status,l.hold_reason,l.pipeline_stage,l.order_status,c.name AS customer_name,c.company,c.phone,c.email,u.name AS staff_name,(SELECT product_name FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS product_name,(SELECT requested_model FROM product_requirements pr WHERE pr.lead_id=l.id ORDER BY pr.id LIMIT 1) AS requested_model,(SELECT matched_product FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS matched_product,(SELECT original_price FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS online_reference_price,(SELECT suggested_selling_price FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS suggested_selling_price,(SELECT supplier FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS supplier,(SELECT stock_status FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS stock_status,(SELECT status FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS online_price_status,(SELECT skip_reason FROM online_price_research opr WHERE opr.lead_id=l.id ORDER BY opr.id DESC LIMIT 1) AS online_skip_reason FROM followups f JOIN leads l ON l.id=f.lead_id JOIN customers c ON c.id=l.customer_id LEFT JOIN users u ON u.id=l.assigned_to WHERE f.id=?`).get(Number(fud[1]));if(!row)return sendJson(res,404,{ok:false,error:'Follow-up not found'});if(!viewerIsOwner(viewer)&&Number(row.assigned_to)!==Number(viewer?.id))return sendJson(res,403,{ok:false,error:'This follow-up belongs to another staff member.'});return sendJson(res,200,{ok:true,data:row});}
     const fum=url.pathname.match(/^\/api\/followups\/(\d+)$/);if(fum&&req.method==='PATCH'){const b=await readBody(req);return sendJson(res,200,{ok:true,data:completeFollowup(Number(fum[1]),b)});}
 
     const om=url.pathname.match(/^\/api\/leads\/(\d+)\/objections$/);if(om&&req.method==='POST'){
