@@ -1,0 +1,14 @@
+NUNES AI CRM V2.11.15
+
+- Radio/checkbox choices are no longer preselected when CRM/staff did not record them.
+- CRM-reported positive evidence may still appear selected.
+- Existing staff-saved values and all old database records are preserved; no destructive migration.
+- Adds form_choices_json only as an additive column for future explicit selections.
+- Buying signals no longer auto-check Quantity merely because the internal default quantity is 1.
+- Contact, follow-up reason, objection, quotation required, order status, and price verification can remain blank until recorded.
+- New CRM records keep unmentioned country/quantity display blank instead of presenting a staff choice as known.
+- LeadSphere sync signature now detects model/spec/budget/delivery/contact/source changes.
+- Existing staff-saved non-empty customer/requirement values are protected when CRM refreshes.
+- Live CRM supervisor re-reads connection settings, syncs about every 10-20 seconds, and reconciles at least every 2 minutes.
+- Dashboard/leads/completed/pending/follow-up screens auto-refresh when shared revision changes.
+- Quotation upload-only workflow from V2.11.14 remains unchanged.

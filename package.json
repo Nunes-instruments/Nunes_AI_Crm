@@ -1,9 +1,9 @@
 {
   "name": "nunes-ai-sales-intelligence-crm",
-  "version": "2.11.14",
+  "version": "2.11.15",
   "private": true,
   "type": "module",
-  "description": "Nunes AI CRM V2.11.14: upload existing quotation files per lead; CRM quotation creation removed from staff workflow; My Quotations removed from staff sidebar.",
+  "description": "Nunes AI CRM V2.11.15: blank-unless-reported form choices, legacy staff-data protection, broader LeadSphere change detection, and near-live CRM synchronization.",
   "engines": {
     "node": ">=22.5.0"
   },

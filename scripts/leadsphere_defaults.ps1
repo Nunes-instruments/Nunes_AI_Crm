@@ -44,8 +44,8 @@ function New-NunesDefaultLeadSphereConfig {
     statusPath = '/external-api/v1/status'
     clientId = ('nunes-ai-crm-' + $computer)
     clientName = 'NUNES AI CRM'
-    syncIntervalSeconds = 60
-    reconciliationMinutes = 5
+    syncIntervalSeconds = 20
+    reconciliationMinutes = 2
     reconciliationDays = 7
     pageSize = 500
     overlapMinutes = 5

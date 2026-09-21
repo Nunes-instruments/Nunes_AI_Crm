@@ -42,9 +42,9 @@ const SCORE_FACTORS_V2 = [
 const SCORE_CONFIG_VERSION = '2';
 const ANALYSIS_VERSION = 8;
 const PRODUCT_INTELLIGENCE_VERSION = 'V3_REQUEST_AWARE';
-const DEPLOYMENT_VERSION = 'V2_11_14_EXISTING_QUOTATION_UPLOAD_ONLY';
-const APP_VERSION = '2.11.14';
-const CLIENT_LAUNCHER_VERSION = '2.11.14';
+const DEPLOYMENT_VERSION = 'V2_11_15_EXPLICIT_CRM_CHOICES_LIVE_SYNC';
+const APP_VERSION = '2.11.15';
+const CLIENT_LAUNCHER_VERSION = '2.11.15';
 const GITHUB_UPDATE_REPO = String(process.env.CRM_UPDATE_REPO||'Nunes-instruments/Nunes_AI_Crm').trim();
 const GITHUB_UPDATE_BRANCH = String(process.env.CRM_UPDATE_BRANCH||'main').trim()||'main';
 const GITHUB_AUTO_UPDATE_ENABLED = String(process.env.CRM_GITHUB_AUTO_UPDATE||'true').toLowerCase()!=='false';
@@ -478,6 +478,8 @@ function initSchema() {
   ensureColumn('leads','decision_influence','TEXT');
   ensureColumn('leads','commercial_potential','TEXT');
   ensureColumn('leads','buying_signals_json','TEXT');
+  // V2.11.15: remembers only fields explicitly selected by staff. Existing rows remain untouched.
+  ensureColumn('leads','form_choices_json','TEXT');
   ensureColumn('leads','customer_value_message','TEXT');
   ensureColumn('leads','recommended_product','TEXT');
   ensureColumn('leads','alternative_product','TEXT');
@@ -1976,7 +1978,7 @@ function createLead(parsed, sourceType='MANUAL', options={}) {
     const c=parsed.customer||{}; const reqs=parsed.requirements||[]; if(!reqs.length) throw new Error('At least one product requirement is required.');
     let customer=findCustomerForLead(c);
     if(!customer) {
-      const customerValues=[c.name||'Needs Confirmation',c.company,c.phone,c.email,c.address,c.city,c.state,c.country||'India',c.pincode,nowIso()].map(v=>v===undefined?null:v);
+      const customerValues=[c.name||'Needs Confirmation',c.company,c.phone,c.email,c.address,c.city,c.state,c.country||null,c.pincode,nowIso()].map(v=>v===undefined?null:v);
       const cid=db.prepare(`INSERT INTO customers(name,company,phone,email,address,city,state,country,pincode,customer_since,external_contact_id,normalized_phone) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run(...customerValues,c.external_contact_id||null,normalizePhone(c.phone)||null).lastInsertRowid;
       customer=db.prepare('SELECT * FROM customers WHERE id=?').get(cid);
     } else {
@@ -1993,7 +1995,7 @@ function createLead(parsed, sourceType='MANUAL', options={}) {
     const code=leadCode();
     leadId=db.prepare(`INSERT INTO leads(lead_code,customer_id,source_type,raw_message,received_at,assigned_to,temperature,purchase_probability,ai_score,priority,pipeline_stage,requirement_status,budget_status,urgency,decision_maker,purchase_intent,timeline,response_status,demo,expected_value,live_classification,product_analysis_status,price_analysis_status,qualification_status,analysis_version,repeat_opportunity) VALUES (?,?,?,?,?,1,'COLD',0,0,'NORMAL','NEW',?,?,?,?,?,?, 'NOT CONTACTED',0,? ,?,'ANALYZING','SEARCHING','CALCULATING',0,?)`).run(code,customer.id,sourceType||parsed.source_type||'MANUAL',raw,receivedAt,requirementStatus,budgetStatus,urgency,'UNKNOWN',purchaseIntent,timeline,initialBudget,liveClassificationFor(receivedAt,sourceType||parsed.source_type||'MANUAL'),previousCount>0?1:0).lastInsertRowid;
     for (const req of reqs) {
-      const statuses={product:req.product_name?'CONFIRMED':'NEEDS_CONFIRMATION',quantity:(Number(req.quantity)>0&&(req.quantity_provided===true||/\b(?:qty|quantity)\b/i.test(raw)||Number(req.quantity)!==1))?'CONFIRMED':'NEEDS_CONFIRMATION',brand:req.requested_brand?'CONFIRMED':'NOT_AVAILABLE',model:req.requested_model?'CONFIRMED':'NOT_AVAILABLE',application:req.application?'CONFIRMED':'NEEDS_CONFIRMATION',budget:req.budget?'CONFIRMED':'NEEDS_CONFIRMATION',required_delivery:req.required_delivery_date?'CONFIRMED':'NEEDS_CONFIRMATION',delivery:req.delivery_location?'CONFIRMED':'NOT_AVAILABLE'};
+      const statuses={product:req.product_name?'CONFIRMED':'NEEDS_CONFIRMATION',quantity:(Number(req.quantity)>0&&(req.quantity_provided===true||/\b(?:qty|quantity)\b/i.test(raw)||Number(req.quantity)!==1))?'CONFIRMED':'NEEDS_CONFIRMATION',brand:req.requested_brand?'CONFIRMED':'NOT_AVAILABLE',model:req.requested_model?'CONFIRMED':'NOT_AVAILABLE',application:req.application?'CONFIRMED':'NEEDS_CONFIRMATION',budget:req.budget?'CONFIRMED':'NEEDS_CONFIRMATION',required_delivery:req.required_delivery_date?'CONFIRMED':'NEEDS_CONFIRMATION',delivery:req.delivery_location?'CONFIRMED':'NOT_AVAILABLE',simple_choices:{...(req.source_choices||{})}};
       const reqValues=[leadId,req.product_name,req.requested_brand,req.requested_model,req.customer_reference,req.quantity||1,req.unit||'Piece',req.application,req.required_specification,req.required_accuracy,req.required_range,req.requested_features,req.requested_certification,req.requested_accessories,req.delivery_location,req.required_delivery_date,req.budget,req.price_expectation,req.preferred_brand,req.alternative_brand_accepted,req.catalogue_required?1:0,req.quotation_required?1:0,req.technical_datasheet_required?1:0,req.installation_required?1:0,req.calibration_required?1:0,req.other_notes,json(statuses)].map(v=>v===undefined?null:v);
       const rid=db.prepare(`INSERT INTO product_requirements(lead_id,product_name,requested_brand,requested_model,customer_reference,quantity,unit,application,required_specification,required_accuracy,required_range,requested_features,requested_certification,requested_accessories,delivery_location,required_delivery_date,budget,price_expectation,preferred_brand,alternative_brand_accepted,catalogue_required,quotation_required,technical_datasheet_required,installation_required,calibration_required,other_notes,status_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(...reqValues).lastInsertRowid;
       db.prepare('INSERT INTO lead_products(lead_id,requirement_id,product_id,match_confidence,match_reason) VALUES (?,?,?,?,?)').run(leadId,rid,null,0,'Product analysis queued');
@@ -2046,8 +2048,8 @@ function crmStatus() {
     base_url:c?.baseUrl||null,
     leads_path:c?.leadsPath||null,
     status_path:c?.statusPath||'/external-api/v1/status',
-    sync_interval_seconds:Number(c?.syncIntervalSeconds||60),
-    reconciliation_minutes:Number(c?.reconciliationMinutes||5),
+    sync_interval_seconds:Math.max(10,Math.min(20,Number(c?.syncIntervalSeconds)||20)),
+    reconciliation_minutes:Math.max(1,Math.min(2,Number(c?.reconciliationMinutes)||2)),
     last_sync:db.prepare("SELECT value FROM app_settings WHERE key='company_crm_last_sync'").get()?.value||null,
     last_successful_sync:db.prepare("SELECT value FROM app_settings WHERE key='company_crm_last_success'").get()?.value||lastSuccess?.finished_at||null,
     last_error:db.prepare("SELECT value FROM app_settings WHERE key='company_crm_last_error'").get()?.value||null,
@@ -2175,15 +2177,29 @@ function priceSourceHealth(){const s=priceSourceAdminStatus();return {state:s.st
 function firstValue(obj,paths) {
   for(const p of paths){let v=obj;for(const k of p.split('.'))v=v?.[k];if(v!==undefined&&v!==null&&v!=='')return v;} return null;
 }
+function firstPresent(obj,paths){for(const p of paths){let v=obj,ok=true;for(const k of p.split('.')){if(v==null||!Object.prototype.hasOwnProperty.call(Object(v),k)){ok=false;break}v=v[k];}if(ok&&v!==undefined&&v!==null)return {present:true,value:v,path:p};}return {present:false,value:null,path:null};}
+function booleanChoice(value){if(value===true||value===1)return 'YES';if(value===false||value===0)return 'NO';const x=String(value??'').trim().toUpperCase();if(['YES','Y','TRUE','1','REQUIRED','REQUESTED'].includes(x))return 'YES';if(['NO','N','FALSE','0','NOT REQUIRED','NOT REQUESTED'].includes(x))return 'NO';return '';}
 function crmLeadToParsed(row) {
   const name=firstValue(row,['lead_name','customer_name','contact_name','name','customer.name','contact.name','full_name']);
   const company=firstValue(row,['company','company_name','organization','account.name','customer.company']);
   const product=firstValue(row,['product_name','product','requirement.product_name','requirement','subject','title']);
-  const quantity=Number(firstValue(row,['quantity','qty','requirement.quantity']))||1;
+  const quantityRaw=firstPresent(row,['quantity','qty','requirement.quantity']),quantity=quantityRaw.present?(Number(quantityRaw.value)||null):1;
   const raw=firstValue(row,['raw_message','message','description','notes','requirement','enquiry'])||JSON.stringify(row);
   const deliveryDate=firstValue(row,['required_delivery_date','delivery_date','purchase_date','expected_purchase_date']);
-  const quoteFlag=Boolean(firstValue(row,['quotation_sent','quotation_required']))||/quotation|quote|best offer|detailed offer/i.test(String(raw));
-  return {customer:{name:name||'Needs Confirmation',company,external_contact_id:firstValue(row,['contact_id','customer_id','external_contact_id','contact.id','customer.id']),phone:firstValue(row,['mobile','phone','phone_number','customer.phone','contact.phone']),email:firstValue(row,['email','email_address','customer.email','contact.email']),address:firstValue(row,['address','customer.address']),city:firstValue(row,['city','customer.city']),state:firstValue(row,['state','customer.state']),country:firstValue(row,['country','customer.country'])||'India',pincode:firstValue(row,['pincode','postal_code','zip'])},requirements:[{product_name:product||'Needs Confirmation',requested_brand:firstValue(row,['brand','preferred_brand']),requested_model:firstValue(row,['model','product_model']),quantity,quantity_provided:firstValue(row,['quantity','qty'])!=null,unit:firstValue(row,['unit','uom'])||'Piece',application:firstValue(row,['application','usage']),required_specification:firstValue(row,['specification','requirement','requirements']),required_accuracy:firstValue(row,['accuracy','required_accuracy']),required_range:firstValue(row,['range','required_range']),requested_features:firstValue(row,['features','requested_features']),requested_certification:firstValue(row,['certification','certificate']),delivery_location:firstValue(row,['delivery_location','location']),required_delivery_date:deliveryDate,budget:Number(firstValue(row,['budget','expected_value']))||extractBudgetAmount(raw)||null,catalogue_required:/catalog(?:ue|og)/i.test(String(raw)),quotation_required:quoteFlag,technical_datasheet_required:/datasheet|data sheet/i.test(String(raw)),calibration_required:/calibration/i.test(String(raw)),other_notes:String(raw)}],raw_message:String(raw),source_type:'CRM'};
+  const quoteDirect=firstPresent(row,['quotation_required','requirement.quotation_required']),quoteSent=Boolean(firstValue(row,['quotation_sent']));
+  const catalogueDirect=firstPresent(row,['catalogue_required','catalog_required','requirement.catalogue_required']);
+  const datasheetDirect=firstPresent(row,['technical_datasheet_required','datasheet_required','requirement.datasheet_required']);
+  const calibrationDirect=firstPresent(row,['calibration_required','requirement.calibration_required']);
+  const installationDirect=firstPresent(row,['installation_required','requirement.installation_required']);
+  const sourceChoices={};
+  const setChoice=(key,direct,positiveRegex)=>{let c=direct.present?booleanChoice(direct.value):'';if(!c&&positiveRegex?.test(String(raw)))c='YES';if(c)sourceChoices[key]=c;return c==='YES';};
+  const quoteFlag=setChoice('quotation_required',quoteDirect,/quotation|quote|best offer|detailed offer/i)||quoteSent;
+  if(quoteSent)sourceChoices.quotation_required='YES';
+  const catalogueFlag=setChoice('catalogue_required',catalogueDirect,/catalog(?:ue|og)/i);
+  const datasheetFlag=setChoice('datasheet_required',datasheetDirect,/datasheet|data sheet/i);
+  const calibrationFlag=setChoice('calibration_required',calibrationDirect,/calibration/i);
+  const installationFlag=setChoice('installation_required',installationDirect,/installation|install at site|commissioning/i);
+  return {customer:{name:name||'Needs Confirmation',company,external_contact_id:firstValue(row,['contact_id','customer_id','external_contact_id','contact.id','customer.id']),phone:firstValue(row,['mobile','phone','phone_number','customer.phone','contact.phone']),email:firstValue(row,['email','email_address','customer.email','contact.email']),address:firstValue(row,['address','customer.address']),city:firstValue(row,['city','customer.city']),state:firstValue(row,['state','customer.state']),country:firstValue(row,['country','customer.country']),pincode:firstValue(row,['pincode','postal_code','zip'])},requirements:[{product_name:product||'Needs Confirmation',requested_brand:firstValue(row,['brand','preferred_brand']),requested_model:firstValue(row,['model','product_model']),quantity:quantity||1,quantity_provided:quantityRaw.present,unit:firstValue(row,['unit','uom'])||'Piece',application:firstValue(row,['application','usage']),required_specification:firstValue(row,['specification','requirement','requirements']),required_accuracy:firstValue(row,['accuracy','required_accuracy']),required_range:firstValue(row,['range','required_range']),requested_features:firstValue(row,['features','requested_features']),requested_certification:firstValue(row,['certification','certificate']),delivery_location:firstValue(row,['delivery_location','location']),required_delivery_date:deliveryDate,budget:Number(firstValue(row,['budget','expected_value']))||extractBudgetAmount(raw)||null,catalogue_required:catalogueFlag,quotation_required:quoteFlag,technical_datasheet_required:datasheetFlag,installation_required:installationFlag,calibration_required:calibrationFlag,source_choices:sourceChoices,other_notes:String(raw)}],raw_message:String(raw),source_type:'CRM'};
 }
 
 function externalEventId(row) {
@@ -2326,11 +2342,20 @@ function resolveExternalOwner(row) {
 }
 
 function syncSignature(row) {
+  // Hash every CRM field that can materially change what staff see. This fixes
+  // updates that previously looked "unchanged" when only model/spec/budget/etc changed.
   return stableHash(JSON.stringify({
-    event_id:externalEventId(row),updated_at:row.updated_at||'',owner:row.assigned_user_id||row.lead_owner||'',status:row.status||'',
-    customer:row.lead_name||row.customer_name||'',company:row.company||'',mobile:row.mobile||'',email:row.email||'',product:row.product_name||'',
-    quantity:row.quantity||'',requirement:row.requirement||'',source:row.lead_source||row.external_source||'',site:row.source_account_name||row.source_account_id||'',
-    lead_group:row.lead_group||'',country:row.country||'',quotation_sent:Boolean(row.quotation_sent),quotation_no:row.quotation_no||'',quotation_by:row.quotation_sent_by||'',quotation_at:row.quotation_sent_at||''
+    event_id:externalEventId(row),updated_at:row.updated_at||row.modified_at||row.received_at||'',
+    owner:row.assigned_user_id||row.lead_owner||row.assigned_user_name||'',status:row.status||row.lead_status||'',
+    customer:row.lead_name||row.customer_name||row.contact_name||'',company:row.company||row.company_name||'',mobile:row.mobile||row.phone||'',email:row.email||'',
+    city:row.city||'',state:row.state||'',country:row.country||'',product:row.product_name||row.product||'',brand:row.brand||row.preferred_brand||'',model:row.model||row.product_model||'',
+    quantity:row.quantity??row.qty??'',unit:row.unit||row.uom||'',application:row.application||row.usage||'',requirement:row.requirement||row.requirements||row.specification||'',
+    accuracy:row.accuracy||row.required_accuracy||'',range:row.range||row.required_range||'',features:row.features||row.requested_features||'',certification:row.certification||row.certificate||'',
+    delivery_location:row.delivery_location||row.location||'',delivery_date:row.required_delivery_date||row.delivery_date||row.purchase_date||row.expected_purchase_date||'',
+    budget:row.budget??row.expected_value??'',catalogue_required:row.catalogue_required??row.catalog_required??'',datasheet_required:row.technical_datasheet_required??row.datasheet_required??'',
+    calibration_required:row.calibration_required??'',installation_required:row.installation_required??'',raw_message:row.raw_message||row.message||row.description||row.notes||row.enquiry||'',
+    source:row.lead_source||row.external_source||'',site:row.source_account_name||row.source_account_id||'',lead_group:row.lead_group||'',country_bucket:row.country_bucket||'',
+    quotation_required:row.quotation_required??'',quotation_sent:Boolean(row.quotation_sent),quotation_no:row.quotation_no||'',quotation_by:row.quotation_sent_by||'',quotation_at:row.quotation_sent_at||''
   }));
 }
 
@@ -2338,24 +2363,47 @@ function updateExistingExternalLead(existing,row) {
   const parsed=crmLeadToParsed(row), c=parsed.customer||{}, req=parsed.requirements?.[0]||{};
   const ownerId=resolveExternalOwner(row), sig=syncSignature(row);
   if(String(existing.sync_signature||'')===sig) return {changed:false,id:existing.id};
+  // Data-safety rule: once a staff member has saved this lead, CRM refresh may fill
+  // missing values but must not replace non-empty staff work. No legacy row is migrated/cleared.
+  const staffSaved=Boolean(existing.form_last_saved_at||existing.form_completed_at);
+  const useful=v=>{const t=String(v??'').trim();return t&&!/^(needs confirmation|not available)$/i.test(t)};
+  const mergeText=(oldVal,newVal)=>{if(!useful(newVal))return oldVal??null;if(staffSaved&&useful(oldVal))return oldVal;return String(newVal).trim();};
   const customer=db.prepare('SELECT * FROM customers WHERE id=?').get(existing.customer_id);
-  if(customer) db.prepare(`UPDATE customers SET name=COALESCE(NULLIF(?,''),name),company=COALESCE(NULLIF(?,''),company),phone=COALESCE(NULLIF(?,''),phone),normalized_phone=COALESCE(NULLIF(?,''),normalized_phone),email=COALESCE(NULLIF(?,''),email),external_contact_id=COALESCE(NULLIF(?,''),external_contact_id),city=COALESCE(NULLIF(?,''),city),state=COALESCE(NULLIF(?,''),state),country=COALESCE(NULLIF(?,''),country),updated_at=? WHERE id=?`).run(c.name,c.company,c.phone,normalizePhone(c.phone),c.email,c.external_contact_id,c.city,c.state,c.country,nowIso(),customer.id);
-  const requirement=db.prepare('SELECT id FROM product_requirements WHERE lead_id=? ORDER BY id LIMIT 1').get(existing.id);
-  if(requirement) db.prepare(`UPDATE product_requirements SET product_name=COALESCE(NULLIF(?,''),product_name),quantity=COALESCE(?,quantity),unit=COALESCE(NULLIF(?,''),unit),required_specification=COALESCE(NULLIF(?,''),required_specification),other_notes=COALESCE(NULLIF(?,''),other_notes),quotation_required=? WHERE id=?`).run(req.product_name,req.quantity,req.unit,req.required_specification,req.other_notes,row.quotation_sent?1:0,requirement.id);
+  if(customer){
+    const next={
+      name:mergeText(customer.name,c.name),company:mergeText(customer.company,c.company),phone:mergeText(customer.phone,c.phone),email:mergeText(customer.email,c.email),
+      address:mergeText(customer.address,c.address),city:mergeText(customer.city,c.city),state:mergeText(customer.state,c.state),country:mergeText(customer.country,c.country),pincode:mergeText(customer.pincode,c.pincode),external_contact_id:mergeText(customer.external_contact_id,c.external_contact_id)
+    };
+    db.prepare(`UPDATE customers SET name=?,company=?,phone=?,normalized_phone=?,email=?,address=?,city=?,state=?,country=?,pincode=?,external_contact_id=?,updated_at=? WHERE id=?`).run(next.name||customer.name||'Needs Confirmation',next.company,next.phone,normalizePhone(next.phone)||customer.normalized_phone||null,next.email,next.address,next.city,next.state,next.country,next.pincode,next.external_contact_id,nowIso(),customer.id);
+  }
+  const requirement=db.prepare('SELECT * FROM product_requirements WHERE lead_id=? ORDER BY id LIMIT 1').get(existing.id);
+  if(requirement){
+    const status=safeJson(requirement.status_json,{})||{};status.simple_choices=status.simple_choices||{};
+    const reqMerge=(oldVal,newVal)=>mergeText(oldVal,newVal);
+    const nextProduct=reqMerge(requirement.product_name,req.product_name),nextBrand=reqMerge(requirement.requested_brand,req.requested_brand),nextModel=reqMerge(requirement.requested_model,req.requested_model),nextUnit=reqMerge(requirement.unit,req.unit),nextApp=reqMerge(requirement.application,req.application),nextSpec=reqMerge(requirement.required_specification,req.required_specification),nextAcc=reqMerge(requirement.required_accuracy,req.required_accuracy),nextRange=reqMerge(requirement.required_range,req.required_range),nextFeatures=reqMerge(requirement.requested_features,req.requested_features),nextCert=reqMerge(requirement.requested_certification,req.requested_certification),nextLoc=reqMerge(requirement.delivery_location,req.delivery_location),nextDate=reqMerge(requirement.required_delivery_date,req.required_delivery_date),nextNotes=reqMerge(requirement.other_notes,req.other_notes);
+    let nextQty=requirement.quantity;if(req.quantity_provided&&Number(req.quantity)>0&&(!staffSaved||String(status.quantity||'').toUpperCase()!=='CONFIRMED')){nextQty=Number(req.quantity);status.quantity='CONFIRMED';}
+    let nextBudget=requirement.budget;if(Number(req.budget)>0&&(!staffSaved||!(Number(requirement.budget)>0)))nextBudget=Number(req.budget);
+    const boolMap={catalogue_required:'catalogue_required',quotation_required:'quotation_required',datasheet_required:'technical_datasheet_required',installation_required:'installation_required',calibration_required:'calibration_required'};
+    const boolVals={catalogue_required:Number(requirement.catalogue_required)||0,quotation_required:Number(requirement.quotation_required)||0,datasheet_required:Number(requirement.technical_datasheet_required)||0,installation_required:Number(requirement.installation_required)||0,calibration_required:Number(requirement.calibration_required)||0};
+    for(const [choiceKey] of Object.entries(boolMap)){const incoming=String(req.source_choices?.[choiceKey]||'').toUpperCase();if(!incoming)continue;const oldChoice=String(status.simple_choices?.[choiceKey]||'').toUpperCase();if(staffSaved&&oldChoice)continue;if(staffSaved&&boolVals[choiceKey]===1&&incoming==='NO')continue;status.simple_choices[choiceKey]=incoming;boolVals[choiceKey]=incoming==='YES'?1:0;}
+    db.prepare(`UPDATE product_requirements SET product_name=?,requested_brand=?,requested_model=?,quantity=?,unit=?,application=?,required_specification=?,required_accuracy=?,required_range=?,requested_features=?,requested_certification=?,delivery_location=?,required_delivery_date=?,budget=?,other_notes=?,catalogue_required=?,quotation_required=?,technical_datasheet_required=?,installation_required=?,calibration_required=?,status_json=? WHERE id=?`).run(
+      nextProduct||requirement.product_name,nextBrand,nextModel,nextQty,nextUnit||requirement.unit,nextApp,nextSpec,nextAcc,nextRange,nextFeatures,nextCert,nextLoc,nextDate,nextBudget,nextNotes,boolVals.catalogue_required,boolVals.quotation_required,boolVals.datasheet_required,boolVals.installation_required,boolVals.calibration_required,json(status),requirement.id
+    );
+  }
   const received=firstValue(row,['received_at','created_at','createdAt']);
-  const extUpdated=String(row.updated_at||row.received_at||row.created_at||nowIso());
+  const extUpdated=String(row.updated_at||row.modified_at||row.received_at||row.created_at||nowIso());
   const sourceType=sourceTypeForRow(row);
   const countryBucket=String(row.country_bucket||normalizeCountryBucket(row.country));
   const receivedIso=received&&Number.isFinite(Date.parse(received))?new Date(received).toISOString():existing.received_at;
   db.prepare(`UPDATE leads SET source_type=?,source_reference=?,source_metadata=?,raw_message=?,received_at=COALESCE(?,received_at),live_classification=?,assigned_to=?,external_updated_at=?,external_owner_id=?,external_owner_name=?,external_status=?,external_source=?,external_source_account_id=?,external_source_account_name=?,external_lead_group=?,external_country_bucket=?,quotation_sent=?,quotation_no=?,quotation_sent_by=?,quotation_sent_at=?,sync_signature=?,analysis_version=0,product_analysis_status='ANALYZING',price_analysis_status='SEARCHING',qualification_status='CALCULATING',updated_at=? WHERE id=?`).run(
     sourceType,String(row.external_inquiry_id||row.lead_id||''),json(row),parsed.raw_message,receivedIso,liveClassificationFor(receivedIso,sourceType),ownerId,extUpdated,String(row.assigned_user_id??''),String(row.lead_owner||''),String(row.status||''),String(row.lead_source||row.external_source||''),String(row.source_account_id||''),String(row.source_account_name||''),String(row.lead_group||''),countryBucket,row.quotation_sent?1:0,String(row.quotation_no||''),String(row.quotation_sent_by||''),String(row.quotation_sent_at||''),sig,nowIso(),existing.id);
   const externalValue=Number(firstValue(row,['expected_value','budget','value','amount']))||null;
-  if(externalValue) db.prepare('UPDATE leads SET expected_value=COALESCE(expected_value,?),updated_at=? WHERE id=?').run(externalValue,nowIso(),existing.id);
+  if(externalValue&&!staffSaved) db.prepare('UPDATE leads SET expected_value=?,updated_at=? WHERE id=?').run(externalValue,nowIso(),existing.id);
   if(row.quotation_sent&&existing.pipeline_stage==='NEW'){
     db.prepare(`UPDATE leads SET pipeline_stage='QUOTATION SENT',updated_at=? WHERE id=?`).run(nowIso(),existing.id);
     db.prepare('INSERT INTO pipeline_history(lead_id,from_stage,to_stage,changed_by,changed_at) VALUES (?,?,?,?,?)').run(existing.id,'NEW','QUOTATION SENT',1,nowIso());
   }
-  addActivity(existing.id,'EXTERNAL_SYNC','LeadSphere lead updated',`Status: ${row.status||'-'} · Owner: ${row.lead_owner||'-'}${row.quotation_sent?' · Quotation already sent':''}`);
+  addActivity(existing.id,'EXTERNAL_SYNC','LeadSphere live update applied',`Status: ${row.status||'-'} · Owner: ${row.lead_owner||'-'}${staffSaved?' · staff-entered values protected':''}${row.quotation_sent?' · quotation already sent':''}`);
   enqueueLeadAnalysis(existing.id,liveClassificationFor(receivedIso,sourceType));bumpDataRevision();
   return {changed:true,id:existing.id};
 }
@@ -2707,23 +2755,34 @@ function upsertSimpleObjection(leadId,b={},finalSave=false){
 }
 function syncSimpleFormPrinciples(leadId,finalSave=false){
   ensurePlaybookForLead(leadId);const d=hydrateLead(leadId);if(!d)return;
-  const l=d.lead,r=d.requirements?.[0]||{},p=d.price_intelligence||{},q=d.quotations?.[0],ob=d.objections?.[0],n=d.nurture||{},pi=d.product_intelligence?.[0]||null;
+  const l=d.lead,r=d.requirements?.[0]||{},p=d.price_intelligence||{},q=d.quotation_uploads?.[0]||d.quotations?.[0],ob=d.objections?.[0],n=d.nurture||{},pi=d.product_intelligence?.[0]||null,choices=safeJson(l.form_choices_json,{})||{};
+  const hasChoice=k=>Object.prototype.hasOwnProperty.call(choices,k), meaningful=(v,blanks=[])=>{const x=String(v??'').trim().toUpperCase();return Boolean(x)&&!blanks.map(z=>String(z).toUpperCase()).includes(x)};
   const mark=(no,ok,data,notes)=>{if(!ok)return;const row=db.prepare('SELECT status FROM sales_playbook_progress WHERE lead_id=? AND stage_no=?').get(leadId,no);if(row&&row.status!=='COMPLETED')completePlaybookStage(leadId,no,{data,notes,activity:false});};
-  mark(1,Boolean(l.requirement_status&&l.requirement_status!=='NEEDS CLARIFICATION'&&l.purchase_intent&&l.purchase_intent!=='UNKNOWN'),{requirement_status:l.requirement_status,budget_band:l.budget_band,urgency:l.urgency,decision_role:l.decision_role,decision_influence:l.decision_influence,purchase_intent:l.purchase_intent},'Qualification captured in the single lead form.');
-  mark(2,Boolean(l.last_contact_at||String(l.response_status||'')!=='NOT CONTACTED'),{response_status:l.response_status,last_contact_at:l.last_contact_at},'Customer contact status is recorded.');
+  const qualificationRecorded=hasChoice('requirement_status')||hasChoice('budget_band')||hasChoice('urgency')||hasChoice('decision_role')||hasChoice('decision_influence')||hasChoice('purchase_intent')||meaningful(l.requirement_status,['NEEDS CLARIFICATION'])||meaningful(l.budget_status,['UNKNOWN'])||meaningful(l.urgency,['UNKNOWN'])||meaningful(l.decision_role,['UNKNOWN'])||meaningful(l.decision_influence,['UNKNOWN'])||meaningful(l.purchase_intent,['UNKNOWN','JUST ENQUIRY','INTERESTED']);
+  mark(1,qualificationRecorded,{requirement_status:l.requirement_status,budget_band:l.budget_band,urgency:l.urgency,decision_role:l.decision_role,decision_influence:l.decision_influence,purchase_intent:l.purchase_intent},'Qualification contains CRM-reported or staff-selected information.');
+  mark(2,Boolean(l.last_contact_at||Number(l.contact_attempts||0)>0||meaningful(l.response_status,['NOT CONTACTED'])),{response_status:l.response_status,last_contact_at:l.last_contact_at},'Customer contact status is recorded.');
   mark(3,Boolean(r.application||r.required_range||r.required_accuracy||r.required_specification||r.requested_model||r.requested_brand||r.delivery_location||r.required_delivery_date),{requirement_id:r.id},'Buyer requirement information is captured.');
-  mark(4,Boolean(finalSave&&pi&&(pi.description||pi.best_match)&&l.requirement_status!=='NEEDS CLARIFICATION'),{handled_internally:true,product_match:pi?.best_match?.confidence||0},'Customer value alignment is evaluated internally from the requirement and product information; no separate staff response UI is shown.');
+  mark(4,Boolean(finalSave&&pi&&(pi.description||pi.best_match)&&meaningful(l.requirement_status,['NEEDS CLARIFICATION'])),{handled_internally:true,product_match:pi?.best_match?.confidence||0},'Customer value alignment is evaluated from recorded requirement and product information.');
   mark(5,Boolean(l.recommended_product||pi?.best_match?.product?.name),{recommended_solution:l.recommended_product||pi?.best_match?.product?.name||null},'A suitable product solution is available from product matching.');
   mark(6,Boolean(pi&&(pi.description||pi.specs?.length||pi.features?.length||pi.applications?.length)),{price_status:p.status,catalogue_required:r.catalogue_required,datasheet_required:r.technical_datasheet_required},'Detailed product information is available in the form.');
-  if(finalSave)mark(7,true,{purchase_urgency:l.urgency||'UNKNOWN',no_verified_urgency:['UNKNOWN','FUTURE'].includes(String(l.urgency||'UNKNOWN').toUpperCase())},['UNKNOWN','FUTURE'].includes(String(l.urgency||'UNKNOWN').toUpperCase())?'No genuine urgency was claimed.':'Customer purchase urgency/timeline captured.');
-  mark(8,Boolean(!ob||ob.resolution_status==='RESOLVED'||db.prepare('SELECT stage_data_json FROM sales_playbook_progress WHERE lead_id=? AND stage_no=8').get(leadId)?.stage_data_json?.includes('no_objection')),{objection:ob?.category||'NONE'},'Customer objection status reviewed.');
+  const urgencyRecorded=hasChoice('urgency')||meaningful(l.urgency,['UNKNOWN']);
+  if(finalSave&&urgencyRecorded)mark(7,true,{purchase_urgency:l.urgency},'Customer purchase urgency/timeline was explicitly recorded.');
+  const objectionRecorded=Boolean(ob)||hasChoice('customer_objection')||Boolean(db.prepare('SELECT stage_data_json FROM sales_playbook_progress WHERE lead_id=? AND stage_no=8').get(leadId)?.stage_data_json?.includes('no_objection'));
+  mark(8,objectionRecorded,{objection:ob?.category||choices.customer_objection||null},'Customer objection status was explicitly reviewed.');
   mark(9,Boolean(q),{quotation_id:q?.id,quotation_no:q?.quotation_no,status:q?.status},'Quotation/proposal exists.');
-  mark(10,Boolean(l.order_status&&l.order_status!=='NOT READY'),{order_status:l.order_status},'Order readiness/status captured.');
+  mark(10,Boolean(hasChoice('order_status')||meaningful(l.order_status,['NOT READY'])),{order_status:l.order_status},'Order readiness/status was explicitly recorded.');
   mark(11,Boolean(l.next_followup_at),{due_at:l.next_followup_at},'Next follow-up scheduled.');
   mark(12,Boolean(n.future_requirement||n.expected_purchase_month||n.next_relationship_followup_at),{future_requirement:n.future_requirement,expected_purchase_month:n.expected_purchase_month,future_followup_at:n.next_relationship_followup_at},'Future relationship/opportunity information recorded.');
 }
+
 function saveSimpleLeadForm(leadId,b={},viewer=null){
   const finalSave=Boolean(b.final_save);const leadBefore=db.prepare('SELECT * FROM leads WHERE id=?').get(leadId);if(!leadBefore)throw new Error('Lead not found');
+  // V2.11.15: remember only choices that were actually present in the submitted form.
+  // Unselected radio/check groups are absent, so opening a lead cannot silently invent an answer.
+  const formChoices=safeJson(leadBefore.form_choices_json,{})||{};let formChoicesChanged=Boolean(!leadBefore.form_last_saved_at&&!leadBefore.form_completed_at&&!String(leadBefore.form_choices_json||'').trim());
+  const rememberChoice=(key,value)=>{const next=Array.isArray(value)?value.map(x=>String(x)):String(value??'');if(JSON.stringify(formChoices[key])!==JSON.stringify(next)){formChoices[key]=next;formChoicesChanged=true;}};
+  for(const key of ['requirement_status','budget_band','urgency','decision_role','decision_influence','purchase_intent','contact_status','followup_reason','customer_objection','quotation_required','order_status','price_verified'])if(Object.hasOwn(b,key))rememberChoice(key,b[key]);
+  if(Object.hasOwn(b,'buying_signals'))rememberChoice('buying_signals',Array.isArray(b.buying_signals)?b.buying_signals:[]);
   if(finalSave&&Object.hasOwn(b,'product_name')&&!String(b.product_name||'').trim())throw new Error('Product Name is required.');
   const customerBefore=db.prepare('SELECT * FROM customers WHERE id=?').get(leadBefore.customer_id);const reqBefore=db.prepare('SELECT * FROM product_requirements WHERE lead_id=? ORDER BY id LIMIT 1').get(leadId);if(!reqBefore)throw new Error('Product requirement not found');
   const c=b.customer||b;const customerFields=['name','company','phone','email','city','state','country'];const csets=[],cvals=[];
@@ -2764,7 +2823,8 @@ function saveSimpleLeadForm(leadId,b={},viewer=null){
     let lc=b.last_contact_at?validDateIso(b.last_contact_at):leadBefore.last_contact_at;if(status!=='NOT CONTACTED'&&!lc)lc=nowIso();lsets.push('last_contact_at=?');lvals.push(lc||null);
     if(status!==leadBefore.response_status&&status!=='NOT CONTACTED'&&finalSave){db.prepare('INSERT INTO communications(lead_id,method,direction,subject,body,outcome,communicated_at,user_id) VALUES (?,?,?,?,?,?,?,1)').run(leadId,status.includes('WHATSAPP')?'WHATSAPP':status.includes('EMAIL')?'EMAIL':'CALL','OUTBOUND','Customer contact update',b.contact_notes||'',status,lc||nowIso());}
   }
-  if(Object.hasOwn(b,'quotation_required')){db.prepare('UPDATE product_requirements SET quotation_required=? WHERE id=?').run(String(b.quotation_required||'').toUpperCase()==='YES'?1:0,reqBefore.id);}
+  if(Object.hasOwn(b,'quotation_required')){const choice=String(b.quotation_required||'').toUpperCase();db.prepare('UPDATE product_requirements SET quotation_required=? WHERE id=?').run(choice==='YES'?1:0,reqBefore.id);if(reqStatus.simple_choices.quotation_required!==choice){reqStatus.simple_choices.quotation_required=choice;db.prepare('UPDATE product_requirements SET status_json=? WHERE id=?').run(json(reqStatus),reqBefore.id);}}
+  if(formChoicesChanged){lsets.push('form_choices_json=?');lvals.push(json(formChoices));}
   if(lsets.length)db.prepare(`UPDATE leads SET ${lsets.join(',')},updated_at=? WHERE id=?`).run(...lvals,nowIso(),leadId);
   if(analysisChanged){db.prepare("UPDATE leads SET analysis_version=0,product_analysis_status='ANALYZING',price_analysis_status='SEARCHING',qualification_status='CALCULATING',updated_at=? WHERE id=?").run(nowIso(),leadId);enqueueLeadAnalysis(leadId,leadBefore.live_classification||'LIVE');}
   if(Array.isArray(b.specifications))for(const spec of b.specifications){const key=String(spec.key||spec.spec_key||'').trim();if(!key)continue;const value=String(spec.value??spec.spec_value??'').trim();if(!value)db.prepare('DELETE FROM lead_specification_overrides WHERE lead_id=? AND spec_key=?').run(leadId,key);else db.prepare(`INSERT INTO lead_specification_overrides(lead_id,spec_key,spec_value,source,verification_status,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(lead_id,spec_key) DO UPDATE SET spec_value=excluded.spec_value,source=excluded.source,verification_status=excluded.verification_status,updated_at=excluded.updated_at`).run(leadId,key,value,'Salesperson Verification','CONFIRMED',nowIso());}
@@ -2777,7 +2837,7 @@ function saveSimpleLeadForm(leadId,b={},viewer=null){
   upsertLeadFollowupFromForm(leadId,b,finalSave);
   upsertSimpleObjection(leadId,b,finalSave);
   const latestQuote=db.prepare('SELECT * FROM quotations WHERE lead_id=? ORDER BY id DESC LIMIT 1').get(leadId);if(latestQuote&&b.quotation_status&&String(b.quotation_status).toUpperCase()!==latestQuote.status){try{quotationStatusUpdate(latestQuote.id,{status:String(b.quotation_status).toUpperCase()});}catch(e){if(finalSave)throw e;}}
-  const currentLead=db.prepare('SELECT * FROM leads WHERE id=?').get(leadId);const orderStatus=String(b.order_status||currentLead.order_status||'NOT READY').toUpperCase();if(orderStatus!==String(leadBefore.order_status||'NOT READY').toUpperCase()||finalSave){
+  const currentLead=db.prepare('SELECT * FROM leads WHERE id=?').get(leadId);const hasOrderStatus=Object.hasOwn(b,'order_status')&&String(b.order_status||'').trim()!=='';const orderStatus=hasOrderStatus?String(b.order_status).toUpperCase():String(currentLead.order_status||'').toUpperCase();if(hasOrderStatus&&orderStatus!==String(leadBefore.order_status||'').toUpperCase()){
     if(orderStatus==='ORDER CONFIRMED'){db.prepare("UPDATE leads SET order_status=?,pipeline_stage='WON',status='WON',purchase_intent='READY TO BUY',order_value=?,order_date=COALESCE(order_date,?),po_number=?,updated_at=? WHERE id=?").run(orderStatus,Number(b.won_value||b.estimated_value||0)||currentLead.expected_value||null,nowIso(),b.po_number||currentLead.po_number||null,nowIso(),leadId);}
     else if(orderStatus==='LOST'){if(finalSave&&!String(b.lost_reason||'').trim())throw new Error('Select a Lost Reason.');if(String(b.lost_reason||'').trim())db.prepare("UPDATE leads SET order_status=?,pipeline_stage='LOST',status='LOST',lost_reason=?,updated_at=? WHERE id=?").run(orderStatus,b.lost_reason,nowIso(),leadId);}
     else if(['READY TO ORDER','WAITING FOR PO','WAITING APPROVAL','NEGOTIATING'].includes(orderStatus)){const stage=orderStatus==='NEGOTIATING'?'NEGOTIATION':'ORDER EXPECTED';db.prepare('UPDATE leads SET order_status=?,pipeline_stage=?,updated_at=? WHERE id=?').run(orderStatus,stage,nowIso(),leadId);}
@@ -2843,7 +2903,7 @@ async function api(req,res,url){
       const viewer=viewerFromRequest(req);if(!viewer||viewer.role==='UNAUTHENTICATED')return sendJson(res,401,{ok:false,error:'This computer is not configured for a CRM user. Run the Owner or Staff PC setup once.'});
       return sendJson(res,200,{ok:true,data:viewer});
     }
-    if(req.method==='GET'&&url.pathname==='/api/live-revision') return sendJson(res,200,{ok:true,data:{revision:dataRevision,time:nowIso()}});
+    if(req.method==='GET'&&url.pathname==='/api/live-revision') return sendJson(res,200,{ok:true,data:{revision:dataRevision,time:nowIso(),crm_last_success:getSetting('company_crm_last_success',''),crm_last_error:getSetting('company_crm_last_error','')}});
     if(req.method==='GET'&&url.pathname==='/api/team-live-summary') return sendJson(res,200,{ok:true,data:teamLiveSummary(url.searchParams.get('period')||'TODAY')});
     if(req.method==='GET'&&url.pathname==='/api/integrations/company-crm/status') return sendJson(res,200,{ok:true,data:crmStatus()});
     if(req.method==='GET'&&url.pathname==='/api/integrations/company-crm/history') return sendJson(res,200,{ok:true,data:db.prepare('SELECT * FROM company_crm_sync_runs ORDER BY id DESC LIMIT 50').all()});
@@ -2946,7 +3006,7 @@ const profile=url.pathname.match(/^\/api\/leads\/(\d+)\/profile$/);if(profile&&r
 
     const rm=url.pathname.match(/^\/api\/leads\/(\d+)\/requirements\/(\d+)$/);if(rm&&req.method==='PATCH'){
       const leadId=Number(rm[1]),rid=Number(rm[2]),b=await readBody(req);const reqRow=db.prepare('SELECT * FROM product_requirements WHERE id=? AND lead_id=?').get(rid,leadId);if(!reqRow)return sendJson(res,404,{ok:false,error:'Requirement not found'});
-      const fields=['product_name','requested_brand','requested_model','quantity','unit','application','required_specification','required_accuracy','required_range','requested_features','requested_certification','requested_accessories','delivery_location','required_delivery_date','budget','price_expectation','preferred_brand','alternative_brand_accepted','catalogue_required','quotation_required','technical_datasheet_required','installation_required','calibration_required','other_notes'];const sets=[],vals=[];for(const f of fields)if(Object.hasOwn(b,f)){sets.push(`${f}=?`);if(['quantity','budget','price_expectation'].includes(f))vals.push(b[f]!==''?Number(b[f])||null:null);else if(['catalogue_required','quotation_required','technical_datasheet_required','installation_required','calibration_required'].includes(f))vals.push(['1','true','yes','on'].includes(String(b[f]).toLowerCase())?1:0);else vals.push(b[f]);}
+      const fields=['product_name','requested_brand','requested_model','quantity','unit','application','required_specification','required_accuracy','required_range','requested_features','requested_certification','requested_accessories','delivery_location','required_delivery_date','budget','price_expectation','preferred_brand','alternative_brand_accepted','catalogue_required','quotation_required','technical_datasheet_required','installation_required','calibration_required','other_notes'];const sets=[],vals=[],reqStatus=safeJson(reqRow.status_json,{})||{};reqStatus.simple_choices=reqStatus.simple_choices||{};let reqStatusChanged=false;const boolChoiceKey={catalogue_required:'catalogue_required',quotation_required:'quotation_required',technical_datasheet_required:'datasheet_required',installation_required:'installation_required',calibration_required:'calibration_required'};for(const f of fields)if(Object.hasOwn(b,f)){if(Object.hasOwn(boolChoiceKey,f)&&String(b[f]??'').trim()==='')continue;sets.push(`${f}=?`);if(['quantity','budget','price_expectation'].includes(f))vals.push(b[f]!==''?Number(b[f])||null:null);else if(Object.hasOwn(boolChoiceKey,f)){const yes=['1','true','yes','on'].includes(String(b[f]).toLowerCase());vals.push(yes?1:0);reqStatus.simple_choices[boolChoiceKey[f]]=yes?'YES':'NO';reqStatusChanged=true;}else vals.push(b[f]);}if(reqStatusChanged){sets.push('status_json=?');vals.push(json(reqStatus));}
       if(sets.length)db.prepare(`UPDATE product_requirements SET ${sets.join(',')} WHERE id=? AND lead_id=?`).run(...vals,rid,leadId);
       const updated=db.prepare('SELECT * FROM product_requirements WHERE id=?').get(rid);const hasNeed=Boolean(updated.application||updated.required_specification||updated.required_range||updated.required_accuracy);db.prepare(`UPDATE leads SET requirement_status=?,budget_status=CASE WHEN ? IS NOT NULL THEN 'CONFIRMED' ELSE budget_status END,expected_value=COALESCE(expected_value,?),analysis_version=0,product_analysis_status='ANALYZING',price_analysis_status='SEARCHING',qualification_status='CALCULATING',updated_at=? WHERE id=?`).run(hasNeed?'CONFIRMED':'NEEDS CLARIFICATION',updated.budget,updated.budget,nowIso(),leadId);addActivity(leadId,'REQUIREMENT','Buyer requirement updated','Discovery answers saved to Buyer Requirements. Product matching and qualification recalculation queued.');if(hasNeed)completePlaybookStage(leadId,3,{notes:'Customer need details saved',data:{requirement_id:rid},activity:false});enqueueLeadAnalysis(leadId,db.prepare('SELECT live_classification FROM leads WHERE id=?').get(leadId)?.live_classification);bumpDataRevision();return sendJson(res,200,{ok:true,data:hydrateLead(leadId)});
     }
@@ -3083,12 +3143,15 @@ function openBrowser(url){if(process.env.CRM_NO_BROWSER==='1')return;if(process.
 async function healthCheck(port){return new Promise(resolve=>{const r=http.get({hostname:'127.0.0.1',port,path:'/api/health',timeout:800},res=>{let s='';res.on('data',d=>s+=d);res.on('end',()=>{try{resolve(JSON.parse(s).app===APP_ID)}catch{resolve(false)}})});r.on('error',()=>resolve(false));r.on('timeout',()=>{r.destroy();resolve(false)});});}
 let syncBusy=false;
 function startCompanyCrmAutoSync(){
-  const c=readCrmConnection();if(!c?.baseUrl||!readCrmSecret())return;
-  const run=async(reconciliation=false)=>{if(syncBusy)return;syncBusy=true;try{const r=await syncCompanyCrm({reconciliation});if(r.inserted||r.updated)console.log(`[LEADSPHERE] ${reconciliation?'Reconcile':'Sync'}: +${r.inserted} new, ${r.updated} updated, ${r.duplicates} unchanged, ${r.failed} failed.`);}catch(e){saveSetting('company_crm_last_error',e.message);console.error('[LEADSPHERE]',e.message);}finally{syncBusy=false;}};
-  // Let the first CRM screen finish loading before the heavier reconciliation pass begins.
-  setTimeout(()=>run(true),5000);
-  setInterval(()=>run(false),Math.max(15,Number(c.syncIntervalSeconds)||60)*1000).unref();
-  setInterval(()=>run(true),Math.max(1,Number(c.reconciliationMinutes)||5)*60000).unref();
+  // V2.11.15 live-sync supervisor: re-reads configuration continuously, so CRM
+  // syncing starts even if connection settings are repaired after the server starts.
+  // Incremental sync is kept near-live; reconciliation catches APIs that do not
+  // reliably honor updated_after/cursors.
+  let lastIncremental=0,lastReconcile=0;
+  const run=async(reconciliation=false)=>{if(syncBusy)return false;const c=readCrmConnection();if(!c?.baseUrl||!readCrmSecret())return false;syncBusy=true;try{const r=await syncCompanyCrm({reconciliation});if(r.inserted||r.updated||r.failed)console.log(`[LEADSPHERE] ${reconciliation?'Reconcile':'Live sync'}: +${r.inserted} new, ${r.updated} updated, ${r.duplicates} unchanged, ${r.failed} failed.`);return true;}catch(e){saveSetting('company_crm_last_error',e.message);console.error('[LEADSPHERE]',e.message);return false;}finally{syncBusy=false;}};
+  const tick=()=>{const c=readCrmConnection();if(!c?.baseUrl||!readCrmSecret())return;const now=Date.now(),incrementalSec=Math.max(10,Math.min(20,Number(c.syncIntervalSeconds)||20)),reconcileMin=Math.max(1,Math.min(2,Number(c.reconciliationMinutes)||2));if(!lastReconcile||now-lastReconcile>=reconcileMin*60000){lastReconcile=now;lastIncremental=now;run(true);return;}if(!lastIncremental||now-lastIncremental>=incrementalSec*1000){lastIncremental=now;run(false);}};
+  setTimeout(tick,2000).unref();
+  setInterval(tick,5000).unref();
 }
 
 async function checkGeminiAtStartup(){
