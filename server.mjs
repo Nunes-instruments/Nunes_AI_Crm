@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawn, execFileSync } from 'node:child_process';
+import { lookup as dnsLookup } from 'node:dns/promises';
 import { DatabaseSync, backup } from 'node:sqlite';
 import { createHash, randomBytes } from 'node:crypto';
 import { gzipSync } from 'node:zlib';
@@ -12,6 +13,10 @@ import { DatabaseProductProvider, FileProductProvider, QuotationHistoryProvider,
 import { GeminiProductSynthesisProvider, ProductResearchOrchestrator, buildProductIntelligenceInput, schemaForCategory, normalizeProductName as normalizeProductNameV25, compactModel as compactModelV25 } from './services/product-intelligence/index.mjs';
 import { parseGoogleSourceUrl, readPriceSourceStatus, readGoogleAuth, writeGoogleAuth, GoogleSheetPriceProvider } from './services/google-price-source.mjs';
 import { OnlinePriceResearchProvider } from './services/online-price-research.mjs';
+
+// NUNES operates in India. Force CRM day/week/month boundaries to Asia/Kolkata
+// so Today/This Week stay correct even if Windows/server timezone is changed.
+process.env.TZ='Asia/Kolkata';
 
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = path.dirname(__filename);
@@ -42,9 +47,9 @@ const SCORE_FACTORS_V2 = [
 const SCORE_CONFIG_VERSION = '2';
 const ANALYSIS_VERSION = 8;
 const PRODUCT_INTELLIGENCE_VERSION = 'V3_REQUEST_AWARE';
-const DEPLOYMENT_VERSION = 'V2_11_15_EXPLICIT_CRM_CHOICES_LIVE_SYNC';
-const APP_VERSION = '2.11.15';
-const CLIENT_LAUNCHER_VERSION = '2.11.15';
+const DEPLOYMENT_VERSION = 'V2_11_17_LEADSPHERE_LIVE_AUTO_RECOVERY';
+const APP_VERSION = '2.11.17';
+const CLIENT_LAUNCHER_VERSION = '2.11.17';
 const GITHUB_UPDATE_REPO = String(process.env.CRM_UPDATE_REPO||'Nunes-instruments/Nunes_AI_Crm').trim();
 const GITHUB_UPDATE_BRANCH = String(process.env.CRM_UPDATE_BRANCH||'main').trim()||'main';
 const GITHUB_AUTO_UPDATE_ENABLED = String(process.env.CRM_GITHUB_AUTO_UPDATE||'true').toLowerCase()!=='false';
@@ -2014,6 +2019,7 @@ function createLead(parsed, sourceType='MANUAL', options={}) {
 
 let crmConnectionCache={mtimeMs:-1,value:null};
 let crmSecretCache={mtimeMs:-1,value:''};
+let crmAutoSyncState={enabled:false,running:false,last_attempt:null,last_mode:null,last_result:null,last_error:null};
 function readCrmConnection() {
   if (!fs.existsSync(CRM_CONNECTION_PATH)) { crmConnectionCache={mtimeMs:-1,value:null}; return null; }
   try {
@@ -2046,6 +2052,8 @@ function crmStatus() {
   return {
     configured:Boolean(c?.baseUrl&&secret),
     base_url:c?.baseUrl||null,
+    active_base_url:db.prepare("SELECT value FROM app_settings WHERE key='company_crm_active_base_url'").get()?.value||c?.baseUrl||null,
+    transport_error:db.prepare("SELECT value FROM app_settings WHERE key='company_crm_last_transport_error'").get()?.value||null,
     leads_path:c?.leadsPath||null,
     status_path:c?.statusPath||'/external-api/v1/status',
     sync_interval_seconds:Math.max(10,Math.min(20,Number(c?.syncIntervalSeconds)||20)),
@@ -2056,12 +2064,65 @@ function crmStatus() {
     api_latency_ms:Number(db.prepare("SELECT value FROM app_settings WHERE key='company_crm_last_latency_ms'").get()?.value||lastRun?.response_ms||0)||null,
     latest_lead:db.prepare(`SELECT lead_code,external_lead_id,received_at FROM leads WHERE source_type IN ('CRM','INDIAMART','EMAIL','WHATSAPP','WEBSITE') ORDER BY received_at DESC LIMIT 1`).get()||null,
     last_run:lastRun||null,
-    last_success:lastSuccess||null
+    last_success:lastSuccess||null,
+    auto_sync:{...crmAutoSyncState}
   };
 }
 
 function saveSetting(key,value) {
   db.prepare(`INSERT INTO app_settings(key,value,updated_at) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`).run(key,String(value??''),nowIso());
+}
+
+function isTailscaleIpv4(value=''){
+  const m=String(value||'').match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);if(!m)return false;
+  const a=Number(m[1]),b=Number(m[2]);return a===100&&b>=64&&b<=127;
+}
+function crmNetworkErrorDetail(error,baseUrl=''){
+  const code=String(error?.cause?.code||error?.code||'').toUpperCase();
+  let host='LeadSphere server',port='';try{const u=new URL(baseUrl);host=u.hostname;port=u.port||((u.protocol==='https:')?'443':'80');}catch{}
+  if(code==='ECONNREFUSED')return `LeadSphere machine is reachable, but the API service is not listening on port ${port||'5000'}. Start the LeadSphere API/server on ${host}.`;
+  if(code==='ENOTFOUND'||code==='EAI_AGAIN')return `Tailscale/MagicDNS could not resolve ${host}. Check Tailscale on both PCs; the CRM will also try the peer Tailscale IP automatically.`;
+  if(code==='ETIMEDOUT'||String(error?.name||'').includes('Timeout'))return `Connection to ${host}:${port||'5000'} timed out. Check Tailscale, Windows Firewall and that the LeadSphere API service is running.`;
+  if(code==='ECONNRESET')return `Connection to ${host}:${port||'5000'} was reset. Restart the LeadSphere API service and check its firewall rule.`;
+  return `LeadSphere network connection failed at ${host}${port?`:${port}`:''}. Check Tailscale and make sure the LeadSphere API/server is running.`;
+}
+function tailscalePeerIpv4s(hostname=''){
+  if(process.platform!=='win32')return [];
+  const wanted=String(hostname||'').toLowerCase().replace(/\.$/,'');const short=wanted.split('.')[0];
+  const paths=['tailscale.exe','C:\\Program Files\\Tailscale\\tailscale.exe','C:\\Program Files (x86)\\Tailscale\\tailscale.exe'];
+  for(const exe of paths){
+    try{
+      const raw=execFileSync(exe,['status','--json'],{encoding:'utf8',windowsHide:true,timeout:4000});const data=JSON.parse(raw);const peers=Object.values(data?.Peer||{});const out=[];
+      for(const peer of peers){const dns=String(peer?.DNSName||'').toLowerCase().replace(/\.$/,'');const hn=String(peer?.HostName||'').toLowerCase();if(!(dns===wanted||dns.startsWith(short+'.')||hn===short))continue;for(const ip of (peer?.TailscaleIPs||[])){if(isTailscaleIpv4(ip))out.push(ip)}}
+      if(out.length)return [...new Set(out)];
+    }catch{}
+  }
+  return [];
+}
+async function crmBaseUrlCandidates(c={}){
+  const raw=String(c?.baseUrl||'').trim();if(!raw)return [];
+  let u;try{u=new URL(raw)}catch{return [raw]}
+  const candidates=[raw.replace(/\/$/,'')];const addIp=ip=>{if(!isTailscaleIpv4(ip))return;const port=u.port?`:${u.port}`:'';candidates.push(`${u.protocol}//${ip}${port}`)};
+  if(isTailscaleIpv4(u.hostname))addIp(u.hostname);
+  else{
+    try{for(const x of await dnsLookup(u.hostname,{all:true,family:4})){addIp(x.address)}}catch{}
+    for(const ip of tailscalePeerIpv4s(u.hostname))addIp(ip);
+  }
+  return [...new Set(candidates)];
+}
+async function crmFetchWithRecovery(c,pathOrUrl,{headers={},params={},timeoutMs=30000}={}){
+  const bases=await crmBaseUrlCandidates(c);let lastError=null;
+  for(const base of bases){
+    let endpoint;try{endpoint=new URL(pathOrUrl,base.endsWith('/')?base:base+'/')}catch(e){lastError=e;continue}
+    for(const [k,v] of Object.entries(params||{}))if(v!==undefined&&v!==null&&v!=='')endpoint.searchParams.set(k,String(v));
+    try{
+      const response=await fetch(endpoint,{headers,signal:AbortSignal.timeout(Number(timeoutMs||30000))});
+      saveSetting('company_crm_active_base_url',base);saveSetting('company_crm_last_transport_error','');
+      return {response,endpoint,activeBaseUrl:base};
+    }catch(e){lastError=e;saveSetting('company_crm_last_transport_error',String(e?.cause?.code||e?.message||e));}
+  }
+  const hint=crmNetworkErrorDetail(lastError,c?.baseUrl||'');
+  const e=new Error(hint);e.cause=lastError;throw e;
 }
 
 function readJsonFile(file){try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return null;}}
@@ -2427,13 +2488,12 @@ function insertExternalLead(row) {
 }
 
 async function fetchCrmPage(c,secret,params) {
-  const endpoint=new URL(c.leadsPath||'/external-api/v1/leads',c.baseUrl);
-  for(const [k,v] of Object.entries(params||{})) if(v!==undefined&&v!==null&&v!=='') endpoint.searchParams.set(k,String(v));
   const headers={'Accept':'application/json','X-Client-ID':c.clientId||`nunes-ai-crm-${os.hostname().toLowerCase()}`,'X-Client-Name':c.clientName||'NUNES AI CRM'};
   const scheme=Object.hasOwn(c,'authScheme')?String(c.authScheme):'Bearer ';
   headers[c.authHeader||'Authorization']=scheme+secret;
   const started=Date.now();
-  const response=await fetch(endpoint,{headers,signal:AbortSignal.timeout(Number(c.timeoutMs||30000))});
+  const transport=await crmFetchWithRecovery(c,c.leadsPath||'/external-api/v1/leads',{headers,params,timeoutMs:Number(c.timeoutMs||30000)});
+  const response=transport.response;
   const body=await response.json().catch(()=>null);
   if(!response.ok) throw new Error(`LeadSphere returned HTTP ${response.status}${body?.error||body?.message?`: ${body.error||body.message}`:''}`);
   const rows=Array.isArray(body)?body:firstValue(body||{},['data.leads','data.items','data.records','data','leads','items','records','results']);
@@ -2491,10 +2551,10 @@ async function syncCompanyCrm({reconciliation=false}={}) {
 async function testCompanyCrmConnection() {
   const c=readCrmConnection(),secret=readCrmSecret();
   if(!c?.baseUrl||!secret) throw new Error('LeadSphere connection is not configured.');
-  const endpoint=new URL(c.statusPath||'/external-api/v1/status',c.baseUrl);
   const headers={'Accept':'application/json','X-Client-ID':c.clientId||`nunes-ai-crm-${os.hostname().toLowerCase()}`,'X-Client-Name':c.clientName||'NUNES AI CRM'};
   headers[c.authHeader||'Authorization']=(Object.hasOwn(c,'authScheme')?String(c.authScheme):'Bearer ')+secret;
-  const response=await fetch(endpoint,{headers,signal:AbortSignal.timeout(Number(c.timeoutMs||15000))});
+  const transport=await crmFetchWithRecovery(c,c.statusPath||'/external-api/v1/status',{headers,timeoutMs:Number(c.timeoutMs||15000)});
+  const response=transport.response;
   const body=await response.json().catch(()=>null);
   if(!response.ok) throw new Error(`LeadSphere status HTTP ${response.status}`);
   return body;
@@ -3143,15 +3203,50 @@ function openBrowser(url){if(process.env.CRM_NO_BROWSER==='1')return;if(process.
 async function healthCheck(port){return new Promise(resolve=>{const r=http.get({hostname:'127.0.0.1',port,path:'/api/health',timeout:800},res=>{let s='';res.on('data',d=>s+=d);res.on('end',()=>{try{resolve(JSON.parse(s).app===APP_ID)}catch{resolve(false)}})});r.on('error',()=>resolve(false));r.on('timeout',()=>{r.destroy();resolve(false)});});}
 let syncBusy=false;
 function startCompanyCrmAutoSync(){
-  // V2.11.15 live-sync supervisor: re-reads configuration continuously, so CRM
-  // syncing starts even if connection settings are repaired after the server starts.
-  // Incremental sync is kept near-live; reconciliation catches APIs that do not
-  // reliably honor updated_after/cursors.
-  let lastIncremental=0,lastReconcile=0;
-  const run=async(reconciliation=false)=>{if(syncBusy)return false;const c=readCrmConnection();if(!c?.baseUrl||!readCrmSecret())return false;syncBusy=true;try{const r=await syncCompanyCrm({reconciliation});if(r.inserted||r.updated||r.failed)console.log(`[LEADSPHERE] ${reconciliation?'Reconcile':'Live sync'}: +${r.inserted} new, ${r.updated} updated, ${r.duplicates} unchanged, ${r.failed} failed.`);return true;}catch(e){saveSetting('company_crm_last_error',e.message);console.error('[LEADSPHERE]',e.message);return false;}finally{syncBusy=false;}};
-  const tick=()=>{const c=readCrmConnection();if(!c?.baseUrl||!readCrmSecret())return;const now=Date.now(),incrementalSec=Math.max(10,Math.min(20,Number(c.syncIntervalSeconds)||20)),reconcileMin=Math.max(1,Math.min(2,Number(c.reconciliationMinutes)||2));if(!lastReconcile||now-lastReconcile>=reconcileMin*60000){lastReconcile=now;lastIncremental=now;run(true);return;}if(!lastIncremental||now-lastIncremental>=incrementalSec*1000){lastIncremental=now;run(false);}};
-  setTimeout(tick,2000).unref();
-  setInterval(tick,5000).unref();
+  // V2.11.16: resilient live-sync supervisor.
+  // Important change: a failed reconciliation no longer waits the full normal interval
+  // before retrying. Config/secret are re-read every tick so repaired settings start live
+  // sync without a server restart.
+  let lastIncremental=0,lastReconcile=0,tickBusy=false;
+  const run=async(reconciliation=false)=>{
+    if(syncBusy)return {ok:false,busy:true};
+    const c=readCrmConnection(),secret=readCrmSecret();
+    crmAutoSyncState.enabled=Boolean(c?.baseUrl&&secret);
+    if(!crmAutoSyncState.enabled){crmAutoSyncState.running=false;return {ok:false,not_configured:true};}
+    syncBusy=true;crmAutoSyncState.running=true;crmAutoSyncState.last_attempt=nowIso();crmAutoSyncState.last_mode=reconciliation?'RECONCILIATION':'INCREMENTAL';
+    try{
+      const r=await syncCompanyCrm({reconciliation});
+      crmAutoSyncState.last_result={inserted:r.inserted,updated:r.updated,duplicates:r.duplicates,failed:r.failed,received:r.received,pages:r.pages,finished_at:r.last_successful_sync};
+      crmAutoSyncState.last_error=null;
+      if(r.inserted||r.updated||r.failed)console.log(`[LEADSPHERE] ${reconciliation?'Reconcile':'Live sync'}: +${r.inserted} new, ${r.updated} updated, ${r.duplicates} unchanged, ${r.failed} failed.`);
+      return {ok:true,result:r};
+    }catch(e){
+      saveSetting('company_crm_last_error',e.message);crmAutoSyncState.last_error=e.message;console.error('[LEADSPHERE]',e.message);return {ok:false,error:e.message};
+    }finally{syncBusy=false;crmAutoSyncState.running=false;}
+  };
+  const tick=async()=>{
+    if(tickBusy)return;tickBusy=true;
+    try{
+      const c=readCrmConnection(),secret=readCrmSecret();
+      crmAutoSyncState.enabled=Boolean(c?.baseUrl&&secret);
+      if(!crmAutoSyncState.enabled)return;
+      const now=Date.now(),incrementalSec=Math.max(10,Math.min(20,Number(c.syncIntervalSeconds)||20)),reconcileMin=Math.max(1,Math.min(2,Number(c.reconciliationMinutes)||2));
+      if(!lastReconcile||now-lastReconcile>=reconcileMin*60000){
+        const result=await run(true);
+        // Successful reconciliation uses the normal interval; failure retries in ~10 sec.
+        lastReconcile=result.ok?Date.now():(Date.now()-reconcileMin*60000+10000);
+        if(result.ok)lastIncremental=Date.now();
+        return;
+      }
+      if(!lastIncremental||now-lastIncremental>=incrementalSec*1000){
+        const result=await run(false);
+        // Failed incremental sync retries quickly instead of appearing dead for a full cycle.
+        lastIncremental=result.ok?Date.now():(Date.now()-incrementalSec*1000+10000);
+      }
+    }finally{tickBusy=false;}
+  };
+  setTimeout(()=>tick().catch(()=>{}),1000).unref();
+  setInterval(()=>tick().catch(()=>{}),5000).unref();
 }
 
 async function checkGeminiAtStartup(){

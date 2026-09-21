@@ -1,0 +1,11 @@
+NUNES AI CRM V2.11.17
+
+- Diagnoses generic "fetch failed" as DNS/Tailscale/port/service/auth problems.
+- Live sync automatically retries the configured LeadSphere URL and matching Tailscale peer IPv4.
+- If MagicDNS is unavailable but the peer IP works, live sync continues through the peer IP.
+- CRM Live Connection shows configured and active fallback endpoint.
+- Added REPAIR_LEADSPHERE_LIVE_NOW.bat one-click diagnostic/recovery.
+- The repair checks Tailscale, MagicDNS, TCP port 5000, status API and API authentication.
+- If a fallback Tailscale IP is verified, the local LeadSphere base URL is safely updated after a config backup.
+- Old SQLite data, staff-entered CRM fields, quotations and history are never deleted by this repair.
+- Includes V2.11.16 India-time Today view and resilient 10-20 second live-sync retry supervisor.

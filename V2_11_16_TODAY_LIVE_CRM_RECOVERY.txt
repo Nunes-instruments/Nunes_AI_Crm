@@ -1,0 +1,10 @@
+NUNES AI CRM V2.11.16 - TODAY / LIVE CRM RECOVERY
+
+Fixes:
+- Forces India (Asia/Kolkata) day/week/month boundaries for Today dashboards.
+- Live CRM auto-sync retries quickly after a failed incremental/reconciliation run.
+- CRM connection/config is re-read continuously; repaired settings work without restart.
+- CRM LIVE/CHECK header refreshes every 10 seconds instead of remaining stale.
+- Live revision polling also refreshes connection state when LeadSphere sync status changes.
+- Added CHECK_LIVE_CRM_TODAY.bat diagnostic for the MAIN SERVER.
+- Existing SQLite, staff work, old leads, .env, CRM credentials and uploaded quotation data are preserved.

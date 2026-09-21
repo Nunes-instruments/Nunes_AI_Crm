@@ -1,9 +1,9 @@
 {
   "name": "nunes-ai-sales-intelligence-crm",
-  "version": "2.11.15",
+  "version": "2.11.17",
   "private": true,
   "type": "module",
-  "description": "Nunes AI CRM V2.11.15: blank-unless-reported form choices, legacy staff-data protection, broader LeadSphere change detection, and near-live CRM synchronization.",
+  "description": "Nunes AI CRM V2.11.17: LeadSphere live connection auto-recovery with Tailscale/MagicDNS IP fallback, exact network diagnostics, fast Today live sync, and preserved CRM/staff history.",
   "engines": {
     "node": ">=22.5.0"
   },
